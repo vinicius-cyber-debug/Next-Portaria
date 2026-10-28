@@ -1,0 +1,35 @@
+# Dependencies
+node_modules/
+
+# Build and test output
+dist/
+.next/
+.vinext/
+out/
+coverage/
+next-env.d.ts
+*.tsbuildinfo
+
+# Local settings, credentials and certificates
+.env*
+!.env.example
+.dev.vars*
+*.pem
+*.key
+
+# Local databases, service state and recovery copies
+.wrangler/
+.porto-*/
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+*.db
+
+# Logs and archives
+*.log
+*.tar.gz
+*.zip
+
+# Operating-system metadata
+.DS_Store
+Thumbs.db

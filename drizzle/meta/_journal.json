@@ -1,0 +1,41 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1792699216699,
+      "tag": "0000_jazzy_scarecrow",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1792757625170,
+      "tag": "0001_tiny_ego",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1792760000000,
+      "tag": "0002_local_users",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1792777675044,
+      "tag": "0003_physical_access",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1793019778469,
+      "tag": "0004_v5",
+      "breakpoints": true
+    }
+  ]
+}
