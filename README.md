@@ -2,11 +2,15 @@
 
 ![Next Portaria — Controle de acesso, pessoas e veículos.](docs/assets/banner.svg)
 
+[![Testes, tipos e compilação](https://github.com/vinicius-cyber-debug/Next-Portaria/actions/workflows/quality.yml/badge.svg?branch=main)](https://github.com/vinicius-cyber-debug/Next-Portaria/actions/workflows/quality.yml)
+
 **Saiba quem pode entrar, quem está no local e quem já saiu.**
 
 O Next Portaria reúne autorizações, pessoas, visitantes e veículos em uma operação com responsáveis definidos, conferência de identidade e histórico. A equipe acompanha o movimento pelo computador ou celular, com permissões por perfil.
 
-[Funcionalidades](#o-que-você-pode-fazer) · [Começar](#comece-por-aqui) · [Documentação](#documentação)
+[**Abrir demonstração**](https://vinicius-cyber-debug.github.io/Next-Portaria/) · [Funcionalidades](#o-que-você-pode-fazer) · [Começar](#comece-por-aqui) · [Documentação](#documentação)
+
+Experimente no navegador, sem instalação ou login, com dados fictícios e alterações apenas na memória da aba.
 
 ## O que você pode fazer
 
