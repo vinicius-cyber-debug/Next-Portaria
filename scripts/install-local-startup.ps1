@@ -56,7 +56,7 @@ $shortcut = $shell.CreateShortcut($shortcutPath)
 $shortcut.TargetPath = Join-Path $env:SystemRoot 'System32/wscript.exe'
 $shortcut.Arguments = '"' + $launcherPath + '"'
 $shortcut.WorkingDirectory = $projectPath
-$shortcut.Description = 'Porto Gestao local - iniciar ao entrar nesta conta Windows'
+$shortcut.Description = 'Next Portaria local - iniciar ao entrar nesta conta Windows'
 $shortcut.WindowStyle = 7
 New-Item -ItemType Directory -Path $startupPath -Force | Out-Null
 $shortcut.Save()

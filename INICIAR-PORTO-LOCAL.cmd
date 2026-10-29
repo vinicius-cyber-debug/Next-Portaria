@@ -4,7 +4,7 @@ cd /d "%~dp0"
 chcp 65001 >nul
 
 echo =============================================================
-echo  PORTO GESTAO - Servidor LOCAL compilado
+echo  NEXT PORTARIA - Servidor LOCAL compilado
 echo =============================================================
 echo.
 where node >nul 2>&1 || (

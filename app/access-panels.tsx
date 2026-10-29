@@ -1,4 +1,5 @@
 "use client";
+import { request as fetch } from '../lib/http-client';
 import React,{useEffect,useRef,useState} from 'react';
 import {Activity,Ban,Check,ChevronRight,CircleAlert,ClipboardCheck,Clock3,Contact,History,LifeBuoy,LogIn,LogOut,MapPin,Plus,Printer,QrCode,Search,ShieldCheck,Users,X} from 'lucide-react';
 import {accessOverview} from '../lib/physical-access.mjs';

@@ -1,28 +1,63 @@
 # Next Portaria
 
-Sistema de portaria e controle de acesso com React, Vinext, Cloudflare D1 (SQLite) e R2 privado. A interface mantém a identificação **Porto Gestão**. O acesso utiliza usuário e senha, com contas, permissões e sessões persistidas no banco.
+![Next Portaria — Controle de acesso, pessoas e veículos.](docs/assets/banner.svg)
 
-## Funcionalidades
+**Saiba quem pode entrar, quem está no local e quem já saiu.**
 
-- Dashboard e Central de Acesso com pessoas presentes, visitas previstas, solicitações pendentes e permanências excedidas.
-- Cadastro de pessoas, veículos e empresas; autorização de visitas por responsável e substituto; conferência de identidade em cada entrada.
-- Entrada e saída de veículos, motoristas e acompanhantes, com movimentações independentes da presença de pessoas.
-- Requisitos de segurança por pessoa e setor, validade, áreas restritas e bloqueio de novas entradas quando necessário.
-- Portaria rápida e crachás com QR Code, validados no servidor.
-- Conferência física de emergência, com registro de divergências.
-- Ocorrências, anexos privados, acompanhamento e passagem de turno com ciência individual.
-- Notificações internas, relatórios, CSV, impressão, auditoria e administração de usuários e permissões.
-- Backup JSON operacional e backup completo criptografado da instalação local.
+O Next Portaria reúne autorizações, pessoas, visitantes e veículos em uma operação com responsáveis definidos, conferência de identidade e histórico. A equipe acompanha o movimento pelo computador ou celular, com permissões por perfil.
 
-## Instalação e uso no Windows
+[Funcionalidades](#o-que-você-pode-fazer) · [Começar](#comece-por-aqui) · [Documentação](#documentação)
 
-Instale Node.js 22.13 ou superior com npm. Na pasta do projeto, execute no PowerShell:
+## O que você pode fazer
+
+| Recurso | Na rotina da equipe |
+| --- | --- |
+| **Autorizações** | Solicitar visitas, definir responsável e substituto, aprovar, recusar ou revogar o acesso. |
+| **Presença na unidade** | Consultar pessoas e veículos presentes, registrar entradas e saídas independentes e identificar permanências excedidas. |
+| **Segurança** | Conferir identidade, requisitos e validade; restringir setores e validar crachás com QR Code no servidor. |
+| **Ocorrências e turnos** | Registrar incidentes, anexar documentos, acompanhar soluções e transmitir pendências à próxima equipe. |
+| **Rastreabilidade** | Consultar histórico, notificações internas, relatórios e auditoria de alterações. |
+| **Continuidade** | Conferir pessoas em emergência e manter backups operacionais e cópias completas criptografadas. |
+
+## Veja a operação
+
+### Dashboard
+
+![Dashboard com indicadores de presença e movimentação usando dados de demonstração.](docs/assets/dashboard.jpg)
+
+| Central de Acesso | Portaria no celular |
+| --- | --- |
+| ![Consulta e movimentação de pessoas na Central de Acesso.](docs/assets/controle-acesso.jpg) | <img src="docs/assets/mobile.jpg" alt="Cartões de acesso no celular com registro de saída e consulta da ficha." width="260"> |
+
+As capturas utilizam dados fictícios de demonstração.
+
+## Comece por aqui
+
+Requisitos: **Node.js 22.13+**, npm e Git.
+
+```powershell
+git clone https://github.com/vinicius-cyber-debug/Next-Portaria.git
+cd Next-Portaria
+npm ci
+```
+
+### Demonstração local
+
+```powershell
+npm run dev:demo
+```
+
+Abra `http://localhost:4173`. A demonstração utiliza dados fictícios e abre o dashboard sem cadastro ou login. As alterações ficam apenas na memória; **Reiniciar demo** recarrega os dados iniciais.
+
+### Instalação no Windows
+
+Para preparar a instalação com banco persistente e contas individuais:
 
 ```powershell
 .\ATUALIZAR-PORTO-LOCAL.cmd
 ```
 
-O atualizador instala dependências ausentes, coordena o backup de uma instalação existente, executa verificações, compila, aplica migrações locais e solicita o primeiro administrador quando necessário. Não existe senha padrão. Após entrar, cadastre os demais operadores em **Administração → Usuários**.
+O atualizador coordena backup, verificações, compilação e migrações locais. Na primeira instalação, solicita o administrador; não existe senha padrão. Depois, cadastre a equipe em **Administração → Usuários**.
 
 No uso diário:
 
@@ -30,43 +65,32 @@ No uso diário:
 .\INICIAR-PORTO-LOCAL.cmd
 ```
 
-O inicializador abre a compilação pronta em segundo plano e acessa `http://127.0.0.1:5173`. O computador servidor precisa permanecer ligado para atender os dispositivos da rede. Contas novas ou com senha redefinida exigem troca de senha antes de operar.
+A aplicação abre em `http://127.0.0.1:5173`. O computador servidor precisa permanecer ligado. Consulte o [guia de operação local](docs/OPERACAO-LOCAL.md) para autenticação, início automático, HTTPS e recuperação.
 
-Consulte o [guia de operação local](docs/OPERACAO-LOCAL.md) para início automático no Windows, contas, HTTPS, backup e recuperação.
+## Documentação
 
-## Desenvolvimento
+- [Operação local](docs/OPERACAO-LOCAL.md) — instalação, usuários, rede, backup e problemas comuns.
+- [Arquitetura](docs/ARQUITETURA.md) — módulos, persistência e responsabilidades.
+- [Notas da versão](docs/CHANGELOG.md) — funcionalidades da v0.5.0.
+- [Roadmap](docs/ROADMAP.md) — recursos disponíveis e prioridades de evolução.
+
+## Tecnologias e desenvolvimento
+
+**React 19 · TypeScript · Vinext/Vite · Tailwind CSS · Cloudflare Workers · D1/SQLite · R2 · Drizzle**
+
+A instalação operacional usa autenticação local, API integrada e armazenamento privado. Os comandos de desenvolvimento, com as dependências instaladas, são:
 
 ```powershell
-npm ci
 npm test
 npm run check
+npm run lint
 npm run build
-node scripts/setup-local.mjs
-node scripts/create-local-admin.mjs
-npm run dev -- --hostname 127.0.0.1
 ```
 
-As migrações e o provisionamento utilizam somente o D1 local. A aplicação começa sem dados operacionais. O administrador configura setores, portarias, pessoas e parâmetros da unidade. Em uma instalação já utilizada, prefira o atualizador do Windows, que coordena a parada e o backup antes da compilação.
+O [guia de operação](docs/OPERACAO-LOCAL.md) e a [arquitetura](docs/ARQUITETURA.md) detalham a execução com dados persistentes.
 
-```powershell
-npm run status
-npm run stop
-npm run start
-npm run backup:full
-```
+## Escopo atual
 
-Desenvolvimento e supervisor devem usar armazenamentos separados quando executados ao mesmo tempo. `npm run lint` executa a análise estática do código.
+A instalação atende uma unidade com múltiplas portarias. Gravações exigem conexão; o histórico é consultado por páginas e as notificações são internas. A câmera de QR no celular exige HTTPS. O backup JSON operacional e o backup completo têm finalidades diferentes, descritas no guia de operação.
 
-## Dados e recuperação
-
-O banco e os objetos locais ficam em `.wrangler/state`. O supervisor usa `.porto-runtime` para status, logs e chave de recuperação; os backups completos ficam por padrão em `.porto-backups`. As ferramentas usam `.porto-tooling`, preparado por `scripts/runtime-env.mjs`. Dados, chaves, variáveis locais e diretórios de execução ficam fora do versionamento.
-
-O backup JSON operacional não inclui contas, credenciais, permissões, auditoria histórica ou arquivos físicos dos anexos. O backup completo inclui a instalação, bancos e objetos, é criptografado e verifica uma restauração isolada. Guarde cópias externas e mantenha a chave de recuperação separada dos backups.
-
-A base conserva compatibilidade com registros de versões anteriores. Recursos de embarcações e financeiro estão desativados na interface e na API; restaurar um backup não reativa esses módulos. As migrações D1 permanecem em `drizzle/` para preservar a integridade de instalações existentes.
-
-## Arquitetura e limites
-
-A [documentação de arquitetura](docs/ARQUITETURA.md) apresenta os módulos e suas responsabilidades. A aplicação atende uma unidade com múltiplas portarias. O estado operacional reúne os últimos 30 dias e registros abertos; o histórico anterior é consultado por páginas. As gravações exigem conexão e ainda validam o estado integral no servidor, portanto volumes maiores exigem medição de desempenho.
-
-Anexos PNG, JPEG, WebP ou PDF de até 5 MiB ficam no R2 privado. A câmera de QR pelo celular exige HTTPS. As notificações são internas, sem envio por e-mail ou WhatsApp. Antes do uso oficial, valide perfis, rotina dos turnos e recuperação dos backups com a equipe responsável.
+Dados, contas, chaves e diretórios de execução ficam fora do versionamento. A base conserva compatibilidade de recuperação com registros antigos; módulos desativados continuam indisponíveis após a restauração.

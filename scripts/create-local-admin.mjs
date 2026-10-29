@@ -36,7 +36,7 @@ async function secret(prompt){
 const record=query('SELECT COUNT(*) AS n FROM operational_credentials;');
 if(Number(record[0]?.n)>0){console.log('Administrador local já cadastrado. Entre pela tela de login.');process.exit(0);}
 if(!input.isTTY)throw Error('O primeiro administrador deve ser criado interativamente.');
-console.log('\nPRIMEIRO ACESSO - PORTO GESTÃO LOCAL');
+console.log('\nPRIMEIRO ACESSO - NEXT PORTARIA LOCAL');
 console.log('Crie o administrador. A senha não será mostrada na tela.');
 const rl=createInterface({input,output});
 let name,username,email;

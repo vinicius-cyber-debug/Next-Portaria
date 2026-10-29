@@ -2,11 +2,11 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Porto Gestão | Portaria e controle de acesso",
+  title: "Next Portaria | Portaria e controle de acesso",
   description: "Gestão de portaria, pessoas, visitantes, veículos e controle de acesso.",
   icons: {
-    icon: "/porto-icon.svg",
-    shortcut: "/porto-icon.svg",
+    icon: "/next-portaria-icon.svg",
+    shortcut: "/next-portaria-icon.svg",
   },
 };
 

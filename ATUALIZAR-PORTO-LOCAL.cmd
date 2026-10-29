@@ -2,7 +2,7 @@
 setlocal EnableExtensions
 cd /d "%~dp0"
 chcp 65001 >nul
-echo PORTO GESTAO - Atualizacao LOCAL manual
+echo NEXT PORTARIA - Atualizacao LOCAL manual
 where node >nul 2>&1 || goto :falha
 where npm >nul 2>&1 || goto :falha
 node scripts/local-service.mjs stop

@@ -1,4 +1,5 @@
 "use client";
+import { request as fetch } from '../lib/http-client';
 import React,{useEffect,useRef,useState} from 'react';
 import {Check,ChevronLeft,ChevronRight,Clock3,LockKeyhole,LogOut,Plus,RefreshCw,ShieldCheck} from 'lucide-react';
 import {canWithCapabilities} from '../lib/access.mjs';

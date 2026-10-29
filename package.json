@@ -18,7 +18,9 @@
     "db:generate": "drizzle-kit generate",
     "test": "node --experimental-strip-types --test tests/*.test.mjs",
     "check": "tsc --noEmit",
-    "demo:local": "node scripts/seed-local-demo.mjs"
+    "demo:local": "node scripts/seed-local-demo.mjs",
+    "dev:demo": "vite --config demo/vite.config.ts",
+    "build:demo": "vite build --config demo/vite.config.ts"
   },
   "dependencies": {
     "drizzle-orm": "0.45.2",

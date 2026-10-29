@@ -28,7 +28,7 @@ try {
   if (!(isIP(publicHost) ? certificate.checkIP(publicHost) : certificate.checkHost(publicHost))) stop('O certificado não cobre PORTO_PUBLIC_HOST.');
 } catch { stop('Não foi possível validar o certificado PEM e a chave privada. Confira os arquivos e as permissões da conta do servidor.'); }
 if (!existsSync(resolve(root, 'dist/server/wrangler.json'))) stop('Compile primeiro com npm run build e prepare o banco com node scripts/setup-local.mjs.');
-console.log(`Porto Gestão · HTTPS local em https://${isIP(publicHost)===6?'['+publicHost+']':publicHost}:${port}`);
+console.log(`Next Portaria · HTTPS local em https://${isIP(publicHost)===6?'['+publicHost+']':publicHost}:${port}`);
 console.log('Banco e arquivos locais em .wrangler/state. O certificado precisa ser confiável nos computadores clientes.');
 const child = spawn(process.execPath, [
   '--import', './scripts/runtime-env.mjs', './node_modules/wrangler/bin/wrangler.js', 'dev',

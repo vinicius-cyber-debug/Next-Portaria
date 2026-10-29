@@ -1,6 +1,7 @@
 "use client";
 
-import { Anchor, ArrowRight, RefreshCw, ShieldCheck, Waves } from 'lucide-react';
+import { ArrowRight, RefreshCw, ShieldCheck } from 'lucide-react';
+import { BrandMark } from './brand-mark';
 
 export function HttpsRequiredScreen({ message }: { message: string }) {
   const port = typeof window === 'undefined' ? '5173' : window.location.port;
@@ -8,8 +9,8 @@ export function HttpsRequiredScreen({ message }: { message: string }) {
 
   return <div className="auth-screen">
     <div className="auth-card">
-      <div className="auth-mark"><Anchor size={32}/></div>
-      <span className="eyebrow">PORTO GESTÃO</span>
+      <div className="auth-mark"><BrandMark size={32}/></div>
+      <span className="eyebrow">NEXT PORTARIA</span>
       <h1>Acesso pela rede exige HTTPS.</h1>
       <p>{message}</p>
       <p>Se você está no computador onde o servidor foi iniciado, abra o endereço local:</p>
@@ -18,6 +19,6 @@ export function HttpsRequiredScreen({ message }: { message: string }) {
       <button className="button secondary" type="button" onClick={() => window.location.reload()}><RefreshCw size={17}/>Verificar novamente</button>
       <div className="auth-footer"><ShieldCheck size={15}/>Acesso privado · Permissões por perfil</div>
     </div>
-    <div className="auth-decoration" aria-hidden="true"><Waves size={280}/></div>
+    <div className="auth-decoration" aria-hidden="true"><BrandMark size={280}/></div>
   </div>;
 }

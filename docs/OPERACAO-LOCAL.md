@@ -1,6 +1,6 @@
 # Operação local — Next Portaria
 
-A instalação usa o computador como servidor local. A interface mantém o nome Porto Gestão. O banco, as contas e os arquivos ficam persistidos em `.wrangler/state`; outros computadores e celulares precisam alcançar esse servidor para operar.
+A instalação usa o computador como servidor local. O banco, as contas e os arquivos ficam persistidos em `.wrangler/state`; outros computadores e celulares precisam alcançar esse servidor para operar.
 
 ## Preparar e atualizar no Windows
 

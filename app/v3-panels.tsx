@@ -1,4 +1,5 @@
 "use client";
+import { request as fetch } from '../lib/http-client';
 import React,{useCallback,useEffect,useRef,useState} from 'react';
 import QRCode from 'qrcode';
 import {Bell,Camera,Check,ChevronRight,CircleAlert,ClipboardList,Download,FileText,History,LoaderCircle,LogIn,LogOut,Plus,Printer,QrCode,RefreshCw,Search,ShieldCheck,Upload,Users,X} from 'lucide-react';

@@ -1,0 +1,19 @@
+.demo-shell { padding-top: 48px; }
+.demo-shell .sidebar, .demo-shell .sidebar-shade { top: 48px; }
+.demo-banner { position: fixed; inset: 0 0 auto; z-index: 250; min-height: 48px; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 8px 24px; color: #eaf3ff; background: #122c50; border-bottom: 1px solid #31557b; font-size: 12px; }
+.demo-banner > div { display: flex; align-items: center; flex-wrap: wrap; gap: 5px 14px; }
+.demo-banner strong { color: #fff; font-weight: 700; }
+.demo-banner span { color: #abc6e6; }
+.demo-banner button { flex-shrink: 0; padding: 5px 11px; border: 1px solid #6b8baa; border-radius: 6px; color: #fff; background: #214668; font-size: 11px; }
+.demo-banner button:hover { background: #2e5d87; }
+.demo-message { position: fixed; z-index: 260; top: 62px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 16px; width: min(90vw, 660px); padding: 15px 18px; border: 1px solid #adcee9; border-radius: 10px; background: #f1f8ff; color: #163e66; box-shadow: 0 8px 25px #123b4626; }
+.demo-message button { margin-left: auto; padding: 0 6px; border: 0; background: transparent; color: inherit; font-size: 24px; }
+@media(max-width: 640px) {
+  .demo-shell { padding-top: 66px; }
+  .demo-shell .sidebar, .demo-shell .sidebar-shade { top: 66px; }
+  .demo-banner { min-height: 66px; padding: 9px 14px; gap: 8px; font-size: 11px; }
+  .demo-banner > div { display: block; }
+  .demo-banner strong, .demo-banner span { display: block; line-height: 1.5; }
+  .demo-message { top: 78px; }
+}
+@media print { .demo-banner, .demo-message { display: none; } .demo-shell { padding-top: 0; } }
