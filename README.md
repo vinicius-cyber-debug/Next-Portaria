@@ -75,6 +75,7 @@ A aplicação abre em `http://127.0.0.1:5173`. O computador servidor precisa per
 
 - [Operação local](docs/OPERACAO-LOCAL.md) — instalação, usuários, rede, backup e problemas comuns.
 - [Arquitetura](docs/ARQUITETURA.md) — módulos, persistência e responsabilidades.
+- [Decisões técnicas](docs/DECISOES-TECNICAS.md) — escolhas de persistência, permissões, sincronização e seus limites.
 - [Notas da versão](docs/CHANGELOG.md) — funcionalidades da v0.5.0.
 - [Roadmap](docs/ROADMAP.md) — recursos disponíveis e prioridades de evolução.
 
@@ -98,3 +99,13 @@ O [guia de operação](docs/OPERACAO-LOCAL.md) e a [arquitetura](docs/ARQUITETUR
 A instalação atende uma unidade com múltiplas portarias. Gravações exigem conexão; o histórico é consultado por páginas e as notificações são internas. A câmera de QR no celular exige HTTPS. O backup JSON operacional e o backup completo têm finalidades diferentes, descritas no guia de operação.
 
 Dados, contas, chaves e diretórios de execução ficam fora do versionamento. A base conserva compatibilidade de recuperação com registros antigos; módulos desativados continuam indisponíveis após a restauração.
+
+## Contribuição e segurança
+
+Consulte o [guia de contribuição](CONTRIBUTING.md) para preparar o ambiente, relatar problemas e enviar melhorias. Vulnerabilidades devem seguir a [política de segurança](SECURITY.md).
+
+## Autor e licença
+
+Desenvolvido por **Vinicius Maia**, desenvolvedor Full Stack. [LinkedIn](https://www.linkedin.com/in/viniciusmaia001/).
+
+Distribuído sob a [licença MIT](LICENSE).
