@@ -8,7 +8,7 @@
 
 O Next Portaria reúne autorizações, pessoas, visitantes e veículos em uma operação com responsáveis definidos, conferência de identidade e histórico. A equipe acompanha o movimento pelo computador ou celular, com permissões por perfil.
 
-[**Abrir demonstração**](https://vinicius-cyber-debug.github.io/Next-Portaria/) · [Funcionalidades](#o-que-você-pode-fazer) · [Começar](#comece-por-aqui) · [Documentação](#documentação)
+[**Abrir demonstração**](https://vinicius-cyber-debug.github.io/Next-Portaria/) · [Estudo de caso](docs/ESTUDO-DE-CASO.md) · [Vídeo de 40s](docs/assets/fluxo-visita.mp4) · [Funcionalidades](#o-que-você-pode-fazer) · [Começar](#comece-por-aqui) · [Documentação](#documentação)
 
 Experimente no navegador, sem instalação ou login, com dados fictícios e alterações apenas na memória da aba.
 
@@ -74,6 +74,7 @@ A aplicação abre em `http://127.0.0.1:5173`. O computador servidor precisa per
 ## Documentação
 
 - [Operação local](docs/OPERACAO-LOCAL.md) — instalação, usuários, rede, backup e problemas comuns.
+- [Estudo de caso](docs/ESTUDO-DE-CASO.md) — participação do autor, desafio de negócio e 154 testes aprovados na validação de 30/10/2026.
 - [Arquitetura](docs/ARQUITETURA.md) — módulos, persistência e responsabilidades.
 - [Decisões técnicas](docs/DECISOES-TECNICAS.md) — escolhas de persistência, permissões, sincronização e seus limites.
 - [Notas da versão](docs/CHANGELOG.md) — funcionalidades da v0.5.0.

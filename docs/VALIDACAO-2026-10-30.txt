@@ -1,0 +1,18 @@
+Next Portaria — registro de validação
+Data: 2026-10-30 (America/Manaus)
+Commit: f8c52af43fa4e8125cdb60ff2d824cb0d2c16814
+Ambiente: Windows, Node.js v24.13.1
+Comandos: npm test; npm run check
+Arquivos tests/*.test.mjs: 16
+Resumo do runner:
+tests 154
+suites 0
+pass 154
+fail 0
+cancelled 0
+skipped 0
+todo 0
+Verificação TypeScript: exit code 0
+
+Não é uma medição de cobertura ou desempenho.
+Não há resultados de operação real; o projeto ainda não está em uso.
