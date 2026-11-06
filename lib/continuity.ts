@@ -1,6 +1,7 @@
 import { ROLES, validateState } from './domain.mjs';
 import { isAfterHours, personRequirementAlerts } from './physical-access.mjs';
 import { ACTIVE_ROLES, RETIRED_NOTICE_KINDS } from './module-policy.mjs';
+import type {Database as D1Database,PreparedStatement as D1PreparedStatement,QueryResult as D1Result,ObjectStore as R2Bucket} from './persistence/contracts.ts';
 
 type ContinuityUser = {id:string;name:string;role:string;status:string;capabilities?:Record<string,boolean>};
 type OperationalState = Record<string, any>;

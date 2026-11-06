@@ -1,6 +1,12 @@
 # Arquitetura — Next Portaria
 
-Monólito de portaria e controle de acesso com interface React, rotas Vinext e persistência Cloudflare D1 (SQLite). Anexos e backups operacionais usam R2 privado. Na instalação local, Wrangler executa o Worker e mantém os dados em `.wrangler/state`.
+Monólito de portaria e controle de acesso com interface React e rotas Vinext. A versão em desenvolvimento permite execução nativa em Node.js com PostgreSQL 17 e arquivos privados em diretório permanente. A execução D1/SQLite/R2 permanece como alternativa legada.
+
+`lib/persistence/contracts.ts` define as portas utilizadas pela API. O provedor PostgreSQL utiliza conexões agrupadas, comandos parametrizados e transações em uma mesma conexão. O adaptador conserva um subconjunto explícito do SQL existente durante esta migração; não é um tradutor SQL de propósito geral. `lib/storage/filesystem.ts` implementa o armazenamento privado com gravação atômica e por fluxo. `virtual:portaria-resources` seleciona o provedor no build, evitando importar bindings Cloudflare no runtime Node.
+
+O esquema PostgreSQL e suas funções de integridade estão em `database/postgres/`. Há controle de revisão com bloqueio transacional, auditoria protegida, preservação do último administrador e índices de presença única. A configuração e os dados ficam fora do versionamento. O modelo de registros JSON e a validação integral de estado são preservados nesta etapa; a troca de banco não representa uma medição de desempenho.
+
+O guia [POSTGRESQL.md](POSTGRESQL.md) descreve o modo nativo, as tabelas preparadas para mídias e a recuperação conjunta. O fluxo abaixo documenta o provedor D1 legado; a API e as regras de domínio são compartilhadas pelos dois modos.
 
 ## Fluxo de uma operação
 

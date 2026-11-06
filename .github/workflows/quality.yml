@@ -44,3 +44,40 @@ jobs:
         run: npm run build
       - name: Build demonstration
         run: npm run build:demo
+  postgres:
+    name: PostgreSQL API and native build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: portaria-ci-ephemeral
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      CI: 'true'
+      PORTO_TEST_POSTGRES_CONFIG: '{"host":"127.0.0.1","port":5432,"user":"postgres","password":"portaria-ci-ephemeral","database":"postgres"}'
+      PORTO_DB_PROVIDER: postgres
+      PORTO_PG_CONFIG: '{"host":"127.0.0.1","port":5432,"user":"postgres","password":"portaria-ci-ephemeral","database":"postgres"}'
+      PORTO_MEDIA_ROOT: .porto-ci-media
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npm run check
+      - run: node --experimental-strip-types --test tests/postgres.test.mjs
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - name: Verify browser hydration and automatic reload
+        run: npm run test:hmr
+        env:
+          PORTO_E2E_MANAGE_SERVER: 'true'

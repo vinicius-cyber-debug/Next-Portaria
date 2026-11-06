@@ -1,6 +1,7 @@
 import { COLLECTIONS, createInitialState } from './domain.mjs';
 import { redactValue, visibleSnapshot } from './access.mjs';
 import { activeState, assertActiveCollection, RETIRED_COLLECTIONS } from './module-policy.mjs';
+import type {Database as D1Database,QueryResult as D1Result} from './persistence/contracts.ts';
 
 type Row=Record<string,any>;
 export const HISTORY_DAYS=30;

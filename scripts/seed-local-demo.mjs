@@ -3,12 +3,14 @@ import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { COLLECTIONS, createInitialState, execute, validateState } from '../lib/domain.mjs';
+import {loadApplicationEnvironment,postgresConfig} from './postgres-config.mjs';
 
 // Ferramenta explícita de teste. O argumento --local é fixo e não pode ser substituído.
 if (process.argv.length !== 2) throw new Error('A carga de demonstração não aceita argumentos.');
 const project = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const config = resolve(project, 'dist/server/wrangler.json');
-if (!existsSync(config)) throw new Error('Execute npm run build e aplique a migração local antes da carga de demonstração.');
+const postgres=loadApplicationEnvironment()==='postgres';
+if (!postgres&&!existsSync(config)) throw new Error('Execute npm run build e aplique a migração local antes da carga de demonstração.');
 const now = Date.now();
 const at = hours => new Date(now + hours * 3600000).toISOString();
 const actor = {id:'fixture_local',name:'Equipe fictícia · teste local',role:'admin'};
@@ -37,7 +39,7 @@ command('MASTER_SAVE',{kind:'companies',record:{name:'Serviços Porto (fictícia
 const safe=validateState(state);
 safe.audit=state.audit;
 const quote=value=>"'"+String(value).replaceAll("'","''")+"'";
-const sql=[
+const statements=[
   // Falha antes de gravar se já houver operações locais. Não limpa um banco utilizado.
   'INSERT INTO operational_meta (id,revision) SELECT 2,0 WHERE EXISTS (SELECT 1 FROM operational_records);',
   'INSERT OR IGNORE INTO operational_meta (id,revision) VALUES (1,0);',
@@ -45,7 +47,13 @@ const sql=[
   ...COLLECTIONS.flatMap(collection=>safe[collection].map(record=>`INSERT INTO operational_records (collection,id,body) VALUES (${quote(collection)},${quote(record.id)},${quote(JSON.stringify(record))});`)),
   ...safe.audit.map(event=>`INSERT INTO operational_audit (id,at,body) VALUES (${quote(event.id)},${quote(event.at)},${quote(JSON.stringify(event))});`),
   'UPDATE operational_meta SET revision=revision+1 WHERE id=1;',
-].join('\n');
+];
+if(postgres){
+  const {PostgresDatabase}=await import('../lib/persistence/postgres.ts');const db=new PostgresDatabase(postgresConfig().database);
+  try{await db.batch(statements.map(sql=>db.prepare(sql)));console.log('Dados ficticios adicionados somente ao PostgreSQL local.');}finally{await db.close();}
+  process.exit(0);
+}
+const sql=statements.join('\n');
 const runtime=resolve(project,'.porto-tooling');mkdirSync(runtime,{recursive:true});
 const fixture=resolve(runtime,'demo-fixture.sql');writeFileSync(fixture,sql);
 const run=spawnSync(process.execPath,['--import','./scripts/runtime-env.mjs','./node_modules/wrangler/bin/wrangler.js','d1','execute','DB','--local','--config',config,'--persist-to','.wrangler/state','--file',fixture],{cwd:project,stdio:'inherit'});

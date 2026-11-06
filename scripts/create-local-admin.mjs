@@ -6,17 +6,30 @@ import { resolve, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { createInterface } from 'node:readline/promises';
 import { stdin as input, stdout as output } from 'node:process';
+import { setTimeout as sleep } from 'node:timers/promises';
+import {loadApplicationEnvironment} from './postgres-config.mjs';
+if(loadApplicationEnvironment()==='postgres'){
+  await import('./create-postgres-admin.mjs');process.exit(0);
+}
 
 const root=resolve(import.meta.dirname,'..');process.chdir(root);
 const config='dist/server/wrangler.json';
 if(!existsSync(config))throw Error('Execute npm run build e node scripts/setup-local.mjs primeiro.');
 const wrangler=[ '--import','./scripts/runtime-env.mjs','./node_modules/wrangler/bin/wrangler.js','d1','execute','DB','--local','--config',config,'--persist-to','.wrangler/state'];
-function query(sql){
-  const result=spawnSync(process.execPath,[...wrangler,'--command',sql,'--json'],{cwd:root,encoding:'utf8',maxBuffer:4*1024*1024});
-  if(result.status!==0)throw Error('Banco D1 local indisponível: '+(result.stderr||result.stdout));
-  const text=result.stdout;const begin=text.indexOf('[{');
-  const parsed=JSON.parse(begin>=0?text.slice(begin):text);
-  return (Array.isArray(parsed)?parsed[0]:parsed).results;
+async function query(sql){
+  // Somente leituras sao repetidas. O provisionamento de escrita e executado uma unica vez.
+  for(let attempt=0;attempt<4;attempt++){
+    const result=spawnSync(process.execPath,[...wrangler,'--command',sql,'--json'],{cwd:root,encoding:'utf8',maxBuffer:4*1024*1024});
+    if(result.status===0){
+      const text=result.stdout;const begin=text.indexOf('[{');
+      const parsed=JSON.parse(begin>=0?text.slice(begin):text);
+      return (Array.isArray(parsed)?parsed[0]:parsed).results;
+    }
+    const detail=result.stderr||result.stdout||result.error?.message||'Falha ao executar Wrangler.';
+    if(!/SQLITE_BUSY|database is locked/i.test(detail))throw Error('Banco D1 local indisponível: '+detail);
+    if(attempt===3)throw Error('O banco local está ocupado. Feche o desenvolvimento e outros processos desta base e repita o cadastro. Uma conta já gravada será reutilizada.');
+    await sleep(250*2**attempt);
+  }
 }
 function escapeSql(value){return "'"+String(value).replaceAll("'","''")+"'";}
 async function secret(prompt){
@@ -33,7 +46,7 @@ async function secret(prompt){
     input.on('data',listener);
   });
 }
-const record=query('SELECT COUNT(*) AS n FROM operational_credentials;');
+const record=await query('SELECT COUNT(*) AS n FROM operational_credentials;');
 if(Number(record[0]?.n)>0){console.log('Administrador local já cadastrado. Entre pela tela de login.');process.exit(0);}
 if(!input.isTTY)throw Error('O primeiro administrador deve ser criado interativamente.');
 console.log('\nPRIMEIRO ACESSO - NEXT PORTARIA LOCAL');
@@ -46,7 +59,7 @@ try{
   email=(await rl.question('E-mail: ')).trim().toLowerCase();
 }finally{rl.close();}
 if(name.length<2||name.length>150||! /^[a-z0-9][a-z0-9._-]{2,39}$/.test(username)||! /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))throw Error('Nome, usuário ou e-mail inválidos. Repita o cadastro.');
-if(query(`SELECT id FROM operational_users WHERE email=${escapeSql(email)}`).length)throw Error('Já existe uma conta com esse e-mail. Use outro e-mail para a conta local.');
+if((await query(`SELECT id FROM operational_users WHERE email=${escapeSql(email)}`)).length)throw Error('Já existe uma conta com esse e-mail. Use outro e-mail para a conta local.');
 const password=await secret('Senha forte (mínimo 12 caracteres): ');
 const confirm=await secret('Confirme a senha: ');
 if(password.length<12||password.length>128||password!==confirm)throw Error('A senha não atende ao tamanho mínimo ou a confirmação é diferente.');
@@ -67,7 +80,7 @@ try{
   const result=spawnSync(process.execPath,[...wrangler,'--file',file],{cwd:root,encoding:'utf8',maxBuffer:4*1024*1024});
   if(result.status!==0)throw Error('Falha ao criar administrador na base LOCAL: '+(result.stderr||result.stdout));
   // Wrangler pode confirmar comandos individualmente: validar todas as entidades antes de informar sucesso.
-  const created=query(`SELECT u.id FROM operational_users u
+  const created=await query(`SELECT u.id FROM operational_users u
     JOIN operational_credentials c ON c.user_id=u.id
     JOIN operational_audit a ON a.id=${escapeSql(auditId)}
     WHERE u.id=${escapeSql(id)} AND c.username=${escapeSql(username)}
