@@ -8,7 +8,7 @@
 
 O Next Portaria reúne autorizações, pessoas, visitantes e veículos em uma operação com responsáveis definidos, conferência de identidade e histórico. A equipe acompanha o movimento pelo computador ou celular, com permissões por perfil.
 
-A versão em desenvolvimento `0.6.0-dev.1` acrescenta operação nativa com **PostgreSQL 17** e armazenamento privado independente para os arquivos. A demonstração e a release `v0.5.0` continuam sendo referências da versão publicada anterior. Consulte [PostgreSQL e recuperação](docs/POSTGRESQL.md).
+A versão `0.6.0` acrescenta operação nativa com **PostgreSQL 17** e armazenamento privado independente para os arquivos. A demonstração permanece uma referência visual. Consulte [PostgreSQL e recuperação](docs/POSTGRESQL.md).
 
 [**Abrir demonstração**](https://vinicius-cyber-debug.github.io/Next-Portaria/) · [Estudo de caso](docs/ESTUDO-DE-CASO.md) · [Vídeo de 40s](docs/assets/fluxo-visita.mp4) · [Funcionalidades](#o-que-você-pode-fazer) · [Começar](#comece-por-aqui) · [Documentação](#documentação)
 

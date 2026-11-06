@@ -1,4 +1,4 @@
-# Validacao local — 0.6.0-dev.1
+# Validacao local — 0.6.0
 
 Data: 5 de novembro de 2026. Ambiente: Windows, Node.js 24.13.1, PostgreSQL 17.11, driver pg 8.23.1. Esta validacao e local; nao houve implantacao no servidor da empresa nem publicacao desta versao no GitHub.
 
@@ -33,7 +33,7 @@ Os testes PostgreSQL usam bancos, papeis e arquivos de QA separados. Exercitam l
 
 ## Limites desta entrega
 
-Na verificacao de 6 de novembro, o modo `dev:local` nativo apresentou timeout no carregamento RSC do Vite/Vinext. Esse problema de desenvolvimento segue pendente. A versao compilada foi iniciada com `npm start` em `127.0.0.1:5180` e respondeu HTTP 200 na pagina e 401 na sessao sem login. Para testar a base enquanto o recarregamento de desenvolvimento e corrigido, utilizar a compilacao.
+Em 6 de novembro, o timeout RSC de desenvolvimento foi corrigido atualizando Vinext/Vite e React compativel, usando a CLI do Vite para desenvolvimento e compilacao. O ensaio Playwright em Edge confirmou hidratacao, clique com estado React e alteracao automatica do componente mantendo esse estado. O teste `npm run test:hmr` passou a fazer parte da verificacao PostgreSQL no CI. O modo nativo e o modo Cloudflare usam caches Vite separados dentro de node_modules.
 
 A estrutura de banco e armazenamento foi preparada para midias. A interface de upload de videos, retomada de envio, codecs, miniaturas e transcodificacao ainda nao foram implementados. O envio antigo continua limitado a 5 MiB.
 

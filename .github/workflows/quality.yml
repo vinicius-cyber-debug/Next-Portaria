@@ -76,3 +76,8 @@ jobs:
       - run: npm run check
       - run: node --experimental-strip-types --test tests/postgres.test.mjs
       - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - name: Verify browser hydration and automatic reload
+        run: npm run test:hmr
+        env:
+          PORTO_E2E_MANAGE_SERVER: 'true'
