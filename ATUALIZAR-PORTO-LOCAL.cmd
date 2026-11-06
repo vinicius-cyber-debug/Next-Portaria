@@ -2,6 +2,10 @@
 setlocal EnableExtensions
 cd /d "%~dp0"
 chcp 65001 >nul
+if exist ".porto-runtime\postgres.json" (
+  call "%~dp0ATUALIZAR-POSTGRES-LOCAL.cmd"
+  exit /b
+)
 echo NEXT PORTARIA - Atualizacao LOCAL manual
 where node >nul 2>&1 || goto :falha
 where npm >nul 2>&1 || goto :falha

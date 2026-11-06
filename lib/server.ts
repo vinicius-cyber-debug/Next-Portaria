@@ -5,6 +5,8 @@ import { handleContinuity, refreshNotifications } from './continuity.ts';
 import { AUTH_COOKIE, PASSWORD_ITERATIONS, SESSION_HOURS, validUsername, validPassword, hashPassword, verifyPassword, sessionToken, tokenHash, cookieToken, sessionCookie } from './local-auth.ts';
 import { assertVisitEligibility } from './physical-access.mjs';
 import { readOperationalSnapshot, operationalVisible, stateDelta, syncState, pagedRecords } from './state-sync.ts';
+import type {Database as D1Database,PreparedStatement as D1PreparedStatement,QueryResult as D1Result,ObjectStore as R2Bucket} from './persistence/contracts.ts';
+import {APP_VERSION} from './version.mjs';
 
 type User = {id:string;email:string;name:string;role:string;status:string;mustChangePassword?:boolean;createdAt?:string;updatedAt?:string;capabilities?:Record<string,boolean>;overrides?:Record<string,boolean>};
 type Resources = {bucket?:R2Bucket;jobToken?:string;allowHttpLan?:boolean};
@@ -298,7 +300,7 @@ export async function handleApi(request:Request,db:D1Database,resources:Resource
       if(!expected||mismatch)reject('UNAUTHENTICATED','Rotina automática não autenticada.',401);
       if(path==='/api/automation/status') {
         const last=await statement(db,'SELECT id,created_at,status,body FROM operational_backup_runs ORDER BY created_at DESC LIMIT 1').first<{id:string;created_at:string;status:string;body:string}>(),info=last?JSON.parse(last.body):null;
-        return response({version:'0.5.0',storageAvailable:!!resources.bucket,lastBackup:last?{id:last.id,createdAt:last.created_at,status:last.status,verification:info.verification??null,verifiedAt:info.verifiedAt??null}:null});
+        return response({version:APP_VERSION,storageAvailable:!!resources.bucket,lastBackup:last?{id:last.id,createdAt:last.created_at,status:last.status,verification:info.verification??null,verifiedAt:info.verifiedAt??null}:null});
       }
       if(path==='/api/automation/schedule') {
         const body=await readBody(request),scheduleId=field(body.scheduleId,'Agendamento',200);if(typeof body.enabled!=='boolean')reject('VALIDATION','Informe a situação do agendamento.');

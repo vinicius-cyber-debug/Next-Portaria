@@ -17,6 +17,10 @@ if errorlevel 1 (
   node --version
   goto :falha
 )
+if exist ".porto-runtime\postgres.json" (
+  call npm start
+  exit /b
+)
 node scripts/local-service.mjs start
 if errorlevel 1 goto :falha
 echo Servidor em segundo plano. Esta janela pode ser fechada.
