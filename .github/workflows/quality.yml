@@ -38,6 +38,8 @@ jobs:
         run: npm ci
       - name: Check types
         run: npm run check
+      - name: Lint stability and integration preparation
+        run: npm run lint:stability
       - name: Run tests
         run: npm test
       - name: Build application
@@ -74,7 +76,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run check
-      - run: node --experimental-strip-types --test tests/postgres.test.mjs
+      - run: node --experimental-strip-types --test tests/postgres.test.mjs tests/postgres-stability.test.mjs tests/postgres-transactions.test.mjs tests/integration-preparation.test.mjs
       - run: npm run build
       - run: npx playwright install --with-deps chromium
       - name: Verify private video playback in browser
