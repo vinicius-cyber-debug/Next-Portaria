@@ -2,7 +2,7 @@
 
 Ambiente local em 6/11/2026: Windows, Node.js 24.13.1, PostgreSQL 17.11, Edge com Playwright. Os testes usam contas, bancos e arquivos isolados; não recebem a senha pessoal do administrador.
 
-- Suíte geral: 171 testes, 169 aprovados e dois testes de navegador/HTTPS reservados à execução específica, sem falhas.
+- Suíte geral e regressão de conflito: 172 testes, com dois testes de navegador/HTTPS reservados à execução específica. A execução específica também inclui esses ensaios.
 - Execução específica PostgreSQL, navegador e HTTPS: inclui todos os testes reservados, reprodução de MP4 real e envio na interface compilada, com interrupção da segunda parte, recarga e retomada sem reenviar a primeira.
 - Doze solicitações simultâneas respeitam o limite de três envios pendentes, sem esgotar o pool de conexões. Revalidação usa a conexão da transação.
 - Conteúdo disfarçado, SHA incorreto, tamanho excessivo, acesso sem sessão, dono diferente, revogação de permissão e logout durante o corpo são recusados.
