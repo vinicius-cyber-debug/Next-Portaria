@@ -24,6 +24,10 @@ test('SQL portavel conserva literais, parametros, aliases e insercao idempotente
  assert.equal(postgresSql("SELECT '?' AS sample,? AS createdAt,'it''s ?' AS literal"),'SELECT \'?\' AS sample,$1 AS "createdAt",\'it\'\'s ?\' AS literal');
  assert.equal(postgresSql('INSERT OR IGNORE INTO x(id) VALUES(?) RETURNING id'),'INSERT INTO x(id) VALUES($1)  ON CONFLICT DO NOTHING RETURNING id');
 });
+test('conflito de transacao anterior ao comando retorna HTTP 409',async()=>{
+ const provider={prepare(){throw Error('Nao deve consultar apos falha de inicializacao.');},async batch(){throw Error('REVISION_CONFLICT');}};
+ const response=await handleApi(new Request('http://127.0.0.1/api/state'),provider);assert.equal(response.status,409);assert.equal((await response.json()).error.code,'REVISION_CONFLICT');
+});
 
 const localPath=resolve('.porto-runtime/postgres.json');
 const supplied=process.env.PORTO_TEST_POSTGRES_CONFIG?JSON.parse(process.env.PORTO_TEST_POSTGRES_CONFIG):null;

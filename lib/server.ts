@@ -512,6 +512,9 @@ export async function handleApi(request:Request,db:D1Database,resources:Resource
   } catch(error) {
     if(error instanceof ApiError) return response({error:{code:error.code,message:error.message}},error.status);
     const domainError=error as Error & {code?:string};
+    // PostgreSQL can detect a concurrent revision during idempotent initialization,
+    // before the command reaches commit(). Keep that conflict actionable as well.
+    if(domainError.message==='REVISION_CONFLICT')return response({error:{code:'REVISION_CONFLICT',message:'Os dados foram atualizados por outro usuário. Atualize e tente novamente.'}},409);
     if(domainError.message?.startsWith('A senha deve')||domainError.message?.startsWith('Usuário inválido'))return response({error:{code:'VALIDATION',message:domainError.message}},400);
     if(domainError.code) {const status=domainError.code==='FORBIDDEN'?403:domainError.code==='NOT_FOUND'?404:domainError.code==='INVALID_BACKUP'?422:400;return response({error:{code:domainError.code,message:domainError.message}},status);}
     console.error('Porto API failure',error instanceof Error?error.message:'Unknown database failure');
