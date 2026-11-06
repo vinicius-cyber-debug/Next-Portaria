@@ -14,7 +14,8 @@ function executable(bin,name){return join(bin,name+(process.platform==='win32'?'
 function command(bin,name,args){const r=spawnSync(executable(bin,name),args,{encoding:'utf8',windowsHide:true,...(name==='pg_ctl'?{stdio:'ignore'}:{})});if(r.status!==0)throw Error(`${name} falhou. Confira postgres.log. ${r.stderr||r.stdout||r.error?.message||''}`);return r.stdout;}
 async function portInUse(port){return new Promise(done=>{const s=connect({host:'127.0.0.1',port});s.setTimeout(1000);s.once('connect',()=>{s.destroy();done(true);});s.once('error',()=>done(false));s.once('timeout',()=>{s.destroy();done(false);});});}
 export function startPostgres(config){const current=spawnSync(executable(config.bin,'pg_ctl'),['status','-D',config.cluster],{encoding:'utf8',windowsHide:true});if(current.status===0)return;command(config.bin,'pg_ctl',['start','-D',config.cluster,'-l',join(config.dataRoot,'postgres.log'),'-w','-t','60']);}
-export async function initializePostgres({bin,dataRoot,port=55432}){
+export async function initializePostgres({bin,dataRoot,port=55432,databaseName='next_portaria_dev'}){
+ if(!/^[a-z][a-z0-9_]{0,62}$/.test(databaseName))throw Error('Nome de banco invalido.');
  if(await exists(configPath))throw Error('Configuracao ja existe. Use start ou migrate; nao inicialize novamente.');
  if(typeof bin!=='string'||typeof dataRoot!=='string'||!isAbsolute(bin)||!isAbsolute(dataRoot))throw Error('Use caminhos absolutos para binarios e dados.');
  if(!Number.isInteger(port)||port<1024||port>65535)throw Error('Porta PostgreSQL invalida.');
@@ -34,14 +35,14 @@ export async function initializePostgres({bin,dataRoot,port=55432}){
  }
  const pending=await exists(pendingFile)?JSON.parse(await readFile(pendingFile,'utf8')):null;
  if(pending&&(pending.dataRoot!==dataRoot||pending.bin!==bin))throw Error('Existe uma preparacao pendente de outro diretorio.');
- const config=pending??{version:1,provider:'postgres',bin,dataRoot,cluster,adminFile,mediaRoot:join(dataRoot,'media'),database:{host:'127.0.0.1',port,user:'portaria_app',password:appPassword,database:'next_portaria_dev'}};
+ const config=pending??{version:1,provider:'postgres',bin,dataRoot,cluster,adminFile,mediaRoot:join(dataRoot,'media'),database:{host:'127.0.0.1',port,user:'portaria_app',password:appPassword,database:databaseName}};
  if(!pending)await writeFile(pendingFile,JSON.stringify(config),{mode:0o600,flag:'wx'});
  startPostgres(config);
  const pool=new pg.Pool(admin);
  try{
   if(!(await pool.query("SELECT 1 FROM pg_roles WHERE rolname='portaria_app'")).rowCount)await pool.query(`CREATE ROLE portaria_app LOGIN PASSWORD '${config.database.password}' NOSUPERUSER NOCREATEDB NOCREATEROLE`);
   else if(!pending)throw Error('Papel PostgreSQL existente sem credencial pendente reconhecida. Nenhuma senha redefinida.');
-  if(!(await pool.query("SELECT 1 FROM pg_database WHERE datname='next_portaria_dev'")).rowCount)await pool.query('CREATE DATABASE next_portaria_dev OWNER portaria_owner');
+  if(!(await pool.query('SELECT 1 FROM pg_database WHERE datname=$1',[config.database.database])).rowCount)await pool.query(`CREATE DATABASE "${config.database.database}" OWNER portaria_owner`);
  }finally{await pool.end();}
  const owner=new pg.Pool({...admin,database:config.database.database});
  try{await migratePostgres(owner);await grantApplicationRole(owner);}finally{await owner.end();}
@@ -52,7 +53,7 @@ export async function initializePostgres({bin,dataRoot,port=55432}){
 import {fileURLToPath} from 'node:url';
 if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)){
  try{
-  if(action==='init')await initializePostgres({bin:option('--bin'),dataRoot:option('--data-root'),port:Number(option('--port')??55432)});
+  if(action==='init')await initializePostgres({bin:option('--bin'),dataRoot:option('--data-root'),port:Number(option('--port')??55432),databaseName:option('--database')??'next_portaria_dev'});
   else{
    const config=postgresConfig();
    if(action==='start'){startPostgres(config);console.log('PostgreSQL local iniciado.');}

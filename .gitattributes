@@ -1,0 +1,2 @@
+database/postgres/*.sql text eol=lf
+database/postgres/legacy/*.sql -text whitespace=trailing-space,space-before-tab,cr-at-eol

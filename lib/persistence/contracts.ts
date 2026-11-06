@@ -21,4 +21,7 @@ export interface ObjectStore {
   head(key:string):Promise<{size:number}|null>;
   delete(key:string):Promise<unknown>;
 }
-export type RuntimeResources={db:Database;bucket:ObjectStore;jobToken?:string;allowHttpLan?:boolean};
+export type MediaUser={id:string;name:string;role:string;status:string;capabilities?:Record<string,boolean>};
+export type MediaContext={user:MediaUser;authorize:(database?:Database)=>Promise<MediaUser>};
+export type MediaHandler={handle:(request:Request,context:MediaContext)=>Promise<Response>};
+export type RuntimeResources={db:Database;bucket:ObjectStore;media?:MediaHandler;jobToken?:string;allowHttpLan?:boolean};

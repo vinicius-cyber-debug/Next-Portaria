@@ -9,7 +9,7 @@ import { stdin as input, stdout as output } from 'node:process';
 import { setTimeout as sleep } from 'node:timers/promises';
 import {loadApplicationEnvironment} from './postgres-config.mjs';
 if(loadApplicationEnvironment()==='postgres'){
-  await import('./create-postgres-admin.mjs');process.exit(0);
+  await import('./create-postgres-admin.mjs');process.exit(process.exitCode??0);
 }
 
 const root=resolve(import.meta.dirname,'..');process.chdir(root);

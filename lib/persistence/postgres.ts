@@ -33,10 +33,10 @@ function normalizedError(error:unknown):Error {
   return Error(value.message??'Falha no PostgreSQL.');
 }
 class PgStatement implements PreparedStatement {
-  readonly owner:PostgresDatabase;readonly sql:string;readonly values:unknown[];
-  constructor(owner:PostgresDatabase,sql:string,values:unknown[]=[]){this.owner=owner;this.sql=sql;this.values=values;}
-  bind(...values:unknown[]){return new PgStatement(this.owner,this.sql,values);}
-  async all<T=Record<string,unknown>>(){return this.owner.query<T>(this);}
+  readonly owner:PostgresDatabase;readonly sql:string;readonly values:unknown[];readonly client?:PoolClient;
+  constructor(owner:PostgresDatabase,sql:string,values:unknown[]=[],client?:PoolClient){this.owner=owner;this.sql=sql;this.values=values;this.client=client;}
+  bind(...values:unknown[]){return new PgStatement(this.owner,this.sql,values,this.client);}
+  async all<T=Record<string,unknown>>(){return this.owner.query<T>(this,this.client);}
   async first<T=Record<string,unknown>>(){return (await this.all<T>()).results[0]??null;}
   async run<T=Record<string,unknown>>(){return this.all<T>();}
 }
@@ -48,6 +48,14 @@ export class PostgresDatabase implements Database {
     this.pool.on('error',()=>console.error('Uma conexao ociosa do PostgreSQL foi encerrada.'));
   }
   prepare(sql:string){return new PgStatement(this,sql);}
+  /** Authentication inside an existing transaction must not acquire a second pool connection. */
+  scoped(client:PoolClient):Database{
+    return {prepare:(sql:string)=>new PgStatement(this,sql,[],client),batch:async<T=Record<string,unknown>>(statements:PreparedStatement[])=>{
+      const results:QueryResult<T>[]=[];
+      for(const statement of statements){if(!(statement instanceof PgStatement)||statement.owner!==this||statement.client!==client)throw Error('Comando fora da transacao ativa.');results.push(await this.query<T>(statement,client));}
+      return results;
+    }};
+  }
   async query<T>(statement:PgStatement,client?:PoolClient):Promise<QueryResult<T>> {
     try{
       const result=await (client??this.pool).query<QueryResultRow>(postgresSql(statement.sql),statement.values);
@@ -55,7 +63,7 @@ export class PostgresDatabase implements Database {
     }catch(error){throw normalizedError(error);}
   }
   async batch<T=Record<string,unknown>>(statements:PreparedStatement[]):Promise<QueryResult<T>[]> {
-    if(statements.some(s=>!(s instanceof PgStatement)||s.owner!==this))throw Error('Lote contem comandos de outra conexao.');
+    if(statements.some(s=>!(s instanceof PgStatement)||s.owner!==this||s.client))throw Error('Lote contem comandos de outra conexao.');
     const client=await this.pool.connect();
     try{
       await client.query('BEGIN ISOLATION LEVEL REPEATABLE READ');
