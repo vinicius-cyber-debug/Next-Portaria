@@ -77,6 +77,11 @@ jobs:
       - run: node --experimental-strip-types --test tests/postgres.test.mjs
       - run: npm run build
       - run: npx playwright install --with-deps chromium
+      - name: Verify private video playback in browser
+        run: node --experimental-strip-types --test tests/postgres.test.mjs
+        env:
+          PORTO_TEST_VIDEO_BROWSER: 'true'
+          PORTO_TEST_HTTPS: 'true'
       - name: Verify browser hydration and automatic reload
         run: npm run test:hmr
         env:

@@ -8,7 +8,7 @@
 
 O Next Portaria reúne autorizações, pessoas, visitantes e veículos em uma operação com responsáveis definidos, conferência de identidade e histórico. A equipe acompanha o movimento pelo computador ou celular, com permissões por perfil.
 
-A versão `0.6.0` acrescenta operação nativa com **PostgreSQL 17** e armazenamento privado independente para os arquivos. A demonstração permanece uma referência visual. Consulte [PostgreSQL e recuperação](docs/POSTGRESQL.md).
+A versão `0.7.0` usa **PostgreSQL 17**, arquivos privados fora do código e envio de fotos e vídeos com retomada nas ocorrências. Consulte [PostgreSQL e recuperação](docs/POSTGRESQL.md), [vídeos e retenção](docs/MIDIAS.md) e [implantação no Windows Server](docs/IMPLANTACAO-SERVIDOR.md). A demonstração permanece uma referência visual.
 
 [**Abrir demonstração**](https://vinicius-cyber-debug.github.io/Next-Portaria/) · [Estudo de caso](docs/ESTUDO-DE-CASO.md) · [Vídeo de 40s](docs/assets/fluxo-visita.mp4) · [Funcionalidades](#o-que-você-pode-fazer) · [Começar](#comece-por-aqui) · [Documentação](#documentação)
 
@@ -57,7 +57,7 @@ Abra `http://localhost:4173`. A demonstração utiliza dados fictícios e abre o
 
 ### Instalação no Windows
 
-Para uma nova implantação própria com PostgreSQL, siga primeiro [a preparação do PostgreSQL](docs/POSTGRESQL.md). A configuração privada seleciona o banco utilizado pelos comandos; sem ela, permanece disponível o modo D1/SQLite legado.
+Para implantar no servidor, use [o pacote de implantação identificado](docs/IMPLANTACAO-SERVIDOR.md). Para desenvolvimento neste computador, siga [a preparação do PostgreSQL](docs/POSTGRESQL.md). A configuração privada seleciona o banco utilizado pelos comandos; sem ela, permanece disponível o modo D1/SQLite legado.
 
 Para preparar a instalação com banco persistente e contas individuais:
 
@@ -73,17 +73,19 @@ No uso diário:
 .\INICIAR-PORTO-LOCAL.cmd
 ```
 
-A aplicação abre em `http://127.0.0.1:5173`. O computador servidor precisa permanecer ligado. Consulte o [guia de operação local](docs/OPERACAO-LOCAL.md) para autenticação, início automático, HTTPS e recuperação.
+A aplicação PostgreSQL local abre em `http://127.0.0.1:5180`; o modo legado usa `5173`. O computador precisa permanecer ligado. O pacote de servidor configura separadamente HTTPS e execução sem login.
 
 ## Documentação
 
 - [Desenvolvimento com banco local](docs/DESENVOLVIMENTO-LOCAL.md) — base persistente, carga fictícia, administrador e ambiente em `127.0.0.1:5180`.
 - [PostgreSQL e armazenamento privado](docs/POSTGRESQL.md) — migração, diretórios permanentes, backup conjunto e estrutura para mídias.
+- [Implantação no servidor](docs/IMPLANTACAO-SERVIDOR.md) — releases, HTTPS, execução sem login, backup externo e aceite.
+- [Fotos e vídeos](docs/MIDIAS.md) — envio com retomada, limites, reprodução e retenção.
 - [Operação local](docs/OPERACAO-LOCAL.md) — instalação, usuários, rede, backup e problemas comuns.
 - [Estudo de caso](docs/ESTUDO-DE-CASO.md) — participação do autor, desafio de negócio e 154 testes aprovados na validação de 30/10/2026.
 - [Arquitetura](docs/ARQUITETURA.md) — módulos, persistência e responsabilidades.
 - [Decisões técnicas](docs/DECISOES-TECNICAS.md) — escolhas de persistência, permissões, sincronização e seus limites.
-- [Notas da versão](docs/CHANGELOG.md) — funcionalidades da v0.5.0.
+- [Notas das versões](docs/CHANGELOG.md) — PostgreSQL, mídias, implantação e histórico.
 - [Roadmap](docs/ROADMAP.md) — recursos disponíveis e prioridades de evolução.
 
 ## Tecnologias e desenvolvimento

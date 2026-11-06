@@ -12,9 +12,19 @@ export async function migratePostgres(pool){
   await client.query('CREATE TABLE IF NOT EXISTS portaria_migrations(version TEXT PRIMARY KEY,sha256 TEXT NOT NULL,applied_at TIMESTAMPTZ NOT NULL DEFAULT now())');
   const folder=new URL('../database/postgres/',import.meta.url);
   for(const file of (await readdir(folder)).filter(f=>/^\d+.*\.sql$/.test(f)).sort()){
-   const sql=await readFile(new URL(file,folder),'utf8'),hash=createHash('sha256').update(sql).digest('hex');
+   // Git on Windows may check out CRLF. Hash the same LF SQL on every platform.
+   const sql=(await readFile(new URL(file,folder),'utf8')).replaceAll('\r\n','\n'),hash=createHash('sha256').update(sql).digest('hex');
    const old=(await client.query('SELECT sha256 FROM portaria_migrations WHERE version=$1',[file])).rows[0];
-   if(old){if(old.sha256!==hash)throw Error('Migracao ja aplicada foi alterada: '+file);continue;}
+   if(old){
+    const legacyWindowsHash=createHash('sha256').update(sql.replaceAll('\n','\r\n')).digest('hex');
+    // The original development baseline mixed SQLite CRLF DDL and LF templates.
+    // Preserve those exact bytes and accept them only if normalized SQL is identical.
+    const archived=await readFile(new URL('legacy/'+file,folder),'utf8').catch(error=>{if(error.code==='ENOENT')return null;throw error;});
+    const sameArchive=archived!==null&&archived.replaceAll('\r\n','\n')===sql&&createHash('sha256').update(archived).digest('hex')===old.sha256;
+    if(old.sha256!==hash&&old.sha256!==legacyWindowsHash&&!sameArchive)throw Error('Migracao ja aplicada foi alterada: '+file);
+    if(old.sha256!==hash)await client.query('UPDATE portaria_migrations SET sha256=$2 WHERE version=$1',[file,hash]);
+    continue;
+   }
    await client.query(sql);await client.query('INSERT INTO portaria_migrations(version,sha256) VALUES($1,$2)',[file,hash]);
   }
   await client.query('COMMIT');

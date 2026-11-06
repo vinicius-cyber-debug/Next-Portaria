@@ -5,11 +5,11 @@ import { handleContinuity, refreshNotifications } from './continuity.ts';
 import { AUTH_COOKIE, PASSWORD_ITERATIONS, SESSION_HOURS, validUsername, validPassword, hashPassword, verifyPassword, sessionToken, tokenHash, cookieToken, sessionCookie } from './local-auth.ts';
 import { assertVisitEligibility } from './physical-access.mjs';
 import { readOperationalSnapshot, operationalVisible, stateDelta, syncState, pagedRecords } from './state-sync.ts';
-import type {Database as D1Database,PreparedStatement as D1PreparedStatement,QueryResult as D1Result,ObjectStore as R2Bucket} from './persistence/contracts.ts';
+import type {Database as D1Database,PreparedStatement as D1PreparedStatement,QueryResult as D1Result,ObjectStore as R2Bucket,MediaHandler} from './persistence/contracts.ts';
 import {APP_VERSION} from './version.mjs';
 
 type User = {id:string;email:string;name:string;role:string;status:string;mustChangePassword?:boolean;createdAt?:string;updatedAt?:string;capabilities?:Record<string,boolean>;overrides?:Record<string,boolean>};
-type Resources = {bucket?:R2Bucket;jobToken?:string;allowHttpLan?:boolean};
+type Resources = {bucket?:R2Bucket;media?:MediaHandler;jobToken?:string;allowHttpLan?:boolean};
 type Audit = Record<string, unknown> & {id:string;at:string};
 type State = {version:number;settings:Record<string,any>;visitors:Record<string,any>[];audit:Audit[];berths:string[];[collection:string]:any};
 type Snapshot = {state:State;revision:number};
@@ -318,6 +318,10 @@ export async function handleApi(request:Request,db:D1Database,resources:Resource
     requireRead(user);
     if(path==='/api/auth/change-password')return await changeOwnPassword(request,db,user);
     if(user.mustChangePassword)reject('PASSWORD_CHANGE_REQUIRED','Altere sua senha inicial antes de acessar a operação.',403);
+    if(path.startsWith('/api/media/')){
+      if(!resources.media)return response({error:{code:'MEDIA_UNAVAILABLE',message:'Fotos e vídeos com retomada exigem a instalação PostgreSQL.'}},503);
+      return await resources.media.handle(request,{user,authorize:async(connection=db)=>{const fresh=await withCapabilities(connection,await identify(request,connection));requireRead(fresh);if(fresh.mustChangePassword)reject('PASSWORD_CHANGE_REQUIRED','Altere sua senha inicial.',403);return fresh;}});
+    }
     if(path==='/api/state'&&request.method==='GET') return response(operationalVisible(await readOperationalSnapshot(db),user));
     if(path==='/api/sync'&&request.method==='GET') {
       const query=new URL(request.url).searchParams,since=expectedRevision(Number(query.get('since')));

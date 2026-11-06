@@ -95,7 +95,7 @@ No modo PostgreSQL, `backup:full` utiliza o novo procedimento. O JSON da tela Co
 
 O backup usa `pg_dump`, inclui os objetos privados, criptografa banco e arquivos e valida os checksums. Antes de declarar `verified`, restaura em um banco temporario e compara todas as tabelas, imagens e midias referenciadas. O banco temporario e removido ao encerrar o ensaio. Uma falha nao substitui nem remove backups anteriores.
 
-O pacote contem os dados e arquivos, nao o instalador, binarios do PostgreSQL ou codigo da aplicacao. Guarde tambem a release correspondente, a versao do PostgreSQL, a configuracao de infraestrutura e a chave externa. Nesta etapa o destino e local e o acionamento e manual; agendamento e copia externa precisam ser configurados na implantacao.
+O pacote de backup contem os dados e arquivos, nao o instalador, binarios do PostgreSQL ou codigo da aplicacao. Guarde tambem a release correspondente, a versao do PostgreSQL, a configuracao de infraestrutura e a chave externa. No desenvolvimento o acionamento e manual; o [pacote de servidor](IMPLANTACAO-SERVIDOR.md) prepara agendamento e copia externa, exigindo destino existente e verificacao de acesso real antes de ativar.
 
 Para verificar novamente:
 

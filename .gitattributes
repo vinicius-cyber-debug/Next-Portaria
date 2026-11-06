@@ -1,0 +1,2 @@
+database/postgres/*.sql text eol=lf
+database/postgres/legacy/*.sql -text

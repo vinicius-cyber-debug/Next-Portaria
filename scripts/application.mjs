@@ -20,7 +20,7 @@ try{
    if(alive&&process.platform==='win32'){
     const check=spawnSync('powershell.exe',['-NoProfile','-NonInteractive','-Command',`$p=Get-CimInstance Win32_Process -Filter 'ProcessId=${record.pid}'; if($p){[PSCustomObject]@{command=$p.CommandLine;started=([DateTimeOffset]$p.CreationDate).ToUnixTimeMilliseconds()}|ConvertTo-Json -Compress}`],{encoding:'utf8',windowsHide:true});
     const actual=check.status===0&&check.stdout.trim()?JSON.parse(check.stdout):null;
-    if(!actual?.command.includes('run-framework.mjs')||Math.abs(actual.started-record.startedAt)>10000)throw Error('O processo mudou. Nenhum processo desconhecido foi encerrado.');
+    if(!actual?.command||!['run-framework.mjs','server-process.mjs'].some(file=>actual.command.includes(file))||Math.abs(actual.started-record.startedAt)>10000)throw Error('O processo mudou. Nenhum processo desconhecido foi encerrado.');
     const stopped=spawnSync('taskkill.exe',['/PID',String(record.pid),'/T','/F'],{stdio:'ignore',windowsHide:true});if(stopped.status!==0)throw Error('Nao foi possivel encerrar a aplicacao.');
    }else if(alive)process.kill(record.pid,'SIGTERM');
    await rm(nativeProcessPath,{force:true});console.log('Aplicacao encerrada; o PostgreSQL permanece como processo separado.');

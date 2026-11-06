@@ -1,6 +1,6 @@
 {
   "name": "next-portaria",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "private": true,
   "engines": {
     "node": ">=22.13.0"
@@ -27,6 +27,8 @@
     "db:admin": "node --experimental-strip-types scripts/create-local-admin.mjs",
     "test": "node --experimental-strip-types --test tests/*.test.mjs",
     "test:hmr": "node tests/e2e-hmr.mjs",
+    "package:server": "node scripts/package-server.mjs",
+    "media:retention": "node --experimental-strip-types scripts/media-retention.mjs",
     "check": "tsc --noEmit",
     "demo:local": "node --experimental-strip-types scripts/seed-local-demo.mjs",
     "dev:demo": "vite --config demo/vite.config.ts",

@@ -1,5 +1,7 @@
 # Operação local — Next Portaria
 
+Para a instalação nativa PostgreSQL, consulte [PostgreSQL](POSTGRESQL.md). Para executar no Windows Server sem login, com HTTPS e backup externo obrigatório, use [o pacote de implantação](IMPLANTACAO-SERVIDOR.md). O restante deste guia documenta o modo legado D1/SQLite; seus caminhos e seu iniciador dependente de login não descrevem a nova operação de servidor.
+
 A instalação usa o computador como servidor local. O banco, as contas e os arquivos ficam persistidos em `.wrangler/state`; outros computadores e celulares precisam alcançar esse servidor para operar.
 
 ## Preparar e atualizar no Windows

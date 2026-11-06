@@ -46,5 +46,25 @@ export class FileObjectStore implements ObjectStore {
     }catch(error){if((error as NodeJS.ErrnoException).code==='ENOENT')return null;throw error;}
   }
   async head(key:string){const path=this.path(key);try{await this.safe(path);const info=await stat(path);return info.isFile()?{size:info.size}:null;}catch(error){if((error as NodeJS.ErrnoException).code==='ENOENT')return null;throw error;}}
+  async range(key:string,start:number,end:number){
+    const path=this.path(key);await this.safe(path);const info=await stat(path);
+    if(!info.isFile()||!Number.isSafeInteger(start)||!Number.isSafeInteger(end)||start<0||end<start||end>=info.size)throw Error('Intervalo de arquivo invalido.');
+    return Readable.toWeb(createReadStream(path,{start,end})) as ReadableStream<Uint8Array>;
+  }
+  async compose(key:string,parts:{object_key:string;size_bytes:number;sha256:string}[],limit:number){
+    const files=await Promise.all(parts.map(async part=>{const path=this.path(part.object_key);await this.safe(path);return {...part,path};}));
+    async function* chunks(){
+      for(const part of files){
+        const hash=createHash('sha256');let size=0;
+        for await(const bytes of createReadStream(part.path)){hash.update(bytes);size+=bytes.length;yield bytes;}
+        if(size!==Number(part.size_bytes)||hash.digest('hex')!==part.sha256)throw Error('Parte de upload corrompida. Reenvie o arquivo.');
+      }
+    }
+    return this.putStream(key,Readable.toWeb(Readable.from(chunks())) as ReadableStream,limit);
+  }
+  async prefix(key:string,length=4096){
+    const info=await this.head(key);if(!info?.size)return Buffer.alloc(0);
+    return Buffer.from(await new Response(await this.range(key,0,Math.min(info.size,length)-1)).arrayBuffer());
+  }
   async delete(key:string){const path=this.path(key);try{await this.safe(path);await rm(path,{force:true});}catch(error){if((error as NodeJS.ErrnoException).code!=='ENOENT')throw error;}}
 }
