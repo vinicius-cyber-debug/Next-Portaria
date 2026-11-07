@@ -1,5 +1,7 @@
 .demo-shell { padding-top: 48px; }
 .demo-shell .sidebar, .demo-shell .sidebar-shade { top: 48px; }
+body:has(.demo-shell) .modal-overlay { padding-top: 64px; }
+body:has(.demo-shell) .modal-dialog { max-height: calc(100dvh - 88px); }
 .demo-banner { position: fixed; inset: 0 0 auto; z-index: 250; min-height: 48px; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 8px 24px; color: #eaf3ff; background: #122c50; border-bottom: 1px solid #31557b; font-size: 12px; }
 .demo-banner > div { display: flex; align-items: center; flex-wrap: wrap; gap: 5px 14px; }
 .demo-banner strong { color: #fff; font-weight: 700; }
@@ -11,9 +13,12 @@
 @media(max-width: 640px) {
   .demo-shell { padding-top: 66px; }
   .demo-shell .sidebar, .demo-shell .sidebar-shade { top: 66px; }
+  body:has(.demo-shell) .modal-overlay { padding-top: 74px; }
+  body:has(.demo-shell) .modal-dialog { max-height: calc(100dvh - 82px); }
   .demo-banner { min-height: 66px; padding: 9px 14px; gap: 8px; font-size: 11px; }
   .demo-banner > div { display: block; }
   .demo-banner strong, .demo-banner span { display: block; line-height: 1.5; }
   .demo-message { top: 78px; }
 }
 @media print { .demo-banner, .demo-message { display: none; } .demo-shell { padding-top: 0; } }
+@media print { body:has(.demo-shell) .modal-overlay { padding: 0; } body:has(.demo-shell) .modal-dialog { max-height: none; } }

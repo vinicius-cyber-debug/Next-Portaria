@@ -105,6 +105,8 @@ npm run build
 
 O [guia de operação](docs/OPERACAO-LOCAL.md) e a [arquitetura](docs/ARQUITETURA.md) detalham a execução com dados persistentes.
 
+O [relatório do redesign Enterprise](docs/REDESIGN-ENTERPRISE.md) descreve o Design System, a auditoria das telas e a verificação de responsividade/acessibilidade com `npm run test:ui`.
+
 ## Escopo atual
 
 A instalação atende uma unidade com múltiplas portarias. Gravações exigem conexão; o histórico é consultado por páginas e as notificações são internas. A câmera de QR no celular exige HTTPS. O backup JSON operacional e o backup completo têm finalidades diferentes, descritas no guia de operação.

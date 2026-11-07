@@ -1,4 +1,5 @@
 import {hasPostgres,withPostgresFixture} from './support/postgres-fixture.mjs';
+import {existsSync} from 'node:fs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile,mkdir,mkdtemp,rm,writeFile} from 'node:fs/promises';
@@ -193,6 +194,16 @@ test('PostgreSQL real: migracoes, API, concorrencia, arquivos privados e recuper
     if(process.env.PORTO_TEST_VIDEO_BROWSER==='true'){
      const {chromium,expect}=await import('@playwright/test'),browser=await chromium.launch({headless:true,...(process.platform==='win32'?{channel:'msedge'}:{})});
      try{
+      const loginContext=await browser.newContext({ignoreHTTPSErrors:true,viewport:{width:390,height:844}});
+      try{
+       const loginPage=await loginContext.newPage();await loginPage.goto(origin);
+       await expect(loginPage.getByRole('button',{name:'Entrar no sistema',exact:true})).toBeVisible();
+       await loginPage.addScriptTag({path:resolve('node_modules/axe-core/axe.min.js')});
+       const accessibility=await loginPage.evaluate(async()=>window.axe.run(document,{runOnly:{type:'tag',values:['wcag2a','wcag2aa','wcag21aa','wcag22aa']}}));
+       assert.deepEqual(accessibility.violations.map(issue=>({id:issue.id,nodes:issue.nodes.map(node=>node.target)})),[],'Login deve preservar acessibilidade em celular.');
+       assert.ok(await loginPage.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
+       if(process.platform==='win32'&&existsSync(resolve('..','NextPortaria-redesign')))await loginPage.screenshot({path:resolve('..','NextPortaria-redesign','390-login.png')});
+      }finally{await loginContext.close()}
       const context=await browser.newContext({ignoreHTTPSErrors:true,viewport:{width:1440,height:1000}});await context.addCookies([{name:'porto_session',value:login.headers['set-cookie'][0].split(';')[0].split('=')[1],url:origin,secure:true}]);
       const page=await context.newPage(),file=join(temp,'evidencia-real-qa.mp4');await writeFile(file,Buffer.concat([video,Buffer.alloc(MEDIA_LIMITS.chunk)]));
       let interrupted=false,firstPartRequests=0;
