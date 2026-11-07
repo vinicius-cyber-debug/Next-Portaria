@@ -4,6 +4,7 @@ import type {Database,PreparedStatement,QueryResult} from './contracts.ts';
 import {postgresError} from './postgres-errors.ts';
 import {runPostgresTransaction} from './transaction.ts';
 import type {Isolation} from './transaction.ts';
+import {trackPoolShutdown} from './pool-lifecycle.ts';
 
 /** Compatibility limited to the application's parameterized SQL, never user SQL. */
 export function postgresSql(input:string):string {
@@ -39,9 +40,11 @@ class PgStatement implements PreparedStatement {
 }
 export class PostgresDatabase implements Database {
   readonly pool:pg.Pool;
+  private readonly closePool:()=>Promise<void>;
   constructor(config:PoolConfig){
     this.pool=new pg.Pool({...config,max:config.max??10,connectionTimeoutMillis:5000,idleTimeoutMillis:30000,
       types:{getTypeParser:(oid:number,format?:string)=>oid===20?safeNumber:pg.types.getTypeParser(oid,format as 'text')}});
+    this.closePool=trackPoolShutdown(this.pool);
     this.pool.on('error',()=>console.error('Uma conexao ociosa do PostgreSQL foi encerrada.'));
   }
   prepare(sql:string){return new PgStatement(this,sql);}
@@ -75,5 +78,5 @@ export class PostgresDatabase implements Database {
       return results;
     },'repeatable read');
   }
-  async close(){await this.pool.end();}
+  async close(){await this.closePool();}
 }

@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import {postgresError} from '../lib/persistence/postgres-errors.ts';
 import {runPostgresTransaction} from '../lib/persistence/transaction.ts';
 import {handleApi} from '../lib/server.ts';
+import {EventEmitter} from 'node:events';
+import {trackPoolShutdown} from '../lib/persistence/pool-lifecycle.ts';
 
 function fakePool({failCommit=false,failRollback=false,failBegin=false}={}){
  const calls=[],releases=[];
@@ -44,4 +46,10 @@ test('BEGIN que falha nao executa o corpo e ainda libera a conexao',async()=>{
 });
 test('falha na aquisicao e encapsulada sem expor credenciais',async()=>{
  await assert.rejects(runPostgresTransaction({async connect(){throw Object.assign(Error('postgres://secret'),{code:'ECONNREFUSED'});}},async()=>{}),error=>error.code===undefined&&!error.message.includes('secret'));
+});
+test('fechamento aguarda end dos clientes ja removidos pelo pool e e idempotente',async()=>{
+ const pool=new EventEmitter(),client=new EventEmitter();let endCalls=0,finished=false;
+ pool.end=async()=>{endCalls++;};const close=trackPoolShutdown(pool);pool.emit('connect',client);pool.emit('remove',client);
+ const pending=close();pending.then(()=>{finished=true;});assert.equal(close(),pending);
+ await new Promise(done=>setImmediate(done));assert.equal(finished,false);client.emit('end');await pending;assert.equal(finished,true);assert.equal(endCalls,1);
 });

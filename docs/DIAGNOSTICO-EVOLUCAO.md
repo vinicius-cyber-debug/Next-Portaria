@@ -29,7 +29,7 @@ O monólito compartilha regras entre PostgreSQL nativo e D1/SQLite legado. Recur
 
 Medição da baseline: `port-app.tsx` tem cerca de 91 kB, `domain.mjs` 70 kB, `server.ts` 60 kB, `v3-panels.tsx` 42 kB e `access-panels.tsx` 39 kB. O número reduzido de linhas esconde funções grandes: `handleApi` concentra aproximadamente 31 kB, e o formulário operacional e a composição principal da interface têm cerca de 27 kB cada.
 
-Os testes SQLite repetem adaptadores/fixtures em vários arquivos. Nesta entrega foi criado um fixture PostgreSQL comum aos novos testes; não foi feita uma reescrita ampla dos testes antigos. API e mídia duplicavam o ciclo transacional e agora compartilham o mesmo executor. Ferramentas administrativas de migração/backup ainda possuem transações próprias e devem ser extraídas em incremento específico, preservando a compatibilidade dos iniciadores Node.
+Os testes SQLite repetem adaptadores/fixtures em vários arquivos. Nesta entrega foi criado um fixture PostgreSQL comum aos testes de estabilidade e aos testes anteriores de API/mídia; não foi feita uma reescrita ampla dos testes SQLite. API e mídia duplicavam o ciclo transacional e agora compartilham o mesmo executor. Ferramentas administrativas de migração/backup ainda possuem transações próprias e devem ser extraídas em incremento específico, preservando a compatibilidade dos iniciadores Node. A finalização dos pools de backup/recuperação já usa o controle de fechamento das conexões desta entrega.
 
 O lint anterior concentra erros de `any`, refs/pureza/estado em effects e aliases de `this`. Uma reformatação geral ou desativação dessas regras não é parte da correção de concorrência. A dívida permanece documentada; os módulos novos e os componentes transacionais alterados ganham lint obrigatório próprio no CI.
 
@@ -40,6 +40,7 @@ O lint anterior concentra erros de `any`, refs/pureza/estado em effects e aliase
 3. **Uso tardio da conexão:** um statement delimitado à transação podia sobreviver à devolução do cliente ao pool. O escopo agora é invalidado ao encerrar o callback; uso após commit/rollback falha antes de executar SQL.
 4. **Erros na transação de mídia:** usavam um ciclo separado e podiam virar 500 genérico. Usam agora o mesmo executor e encaminham conflitos à classificação existente da API.
 5. **Cobertura insuficiente dos códigos reais:** os testes agora produzem `40001` e `40P01` com bloqueios reais, verificam rollback da auditoria e registros intermediários, repetição idempotente e liberação de pools.
+6. **Fechamento antecipado do pool:** a execução Linux do CI mostrou uma conexão em fechamento recebendo erro fatal quando o banco de QA era removido. A inspeção do `pg-pool` instalado confirmou que ele retira o cliente de sua lista antes do evento `end`. `pool-lifecycle.ts` acompanha também clientes já retirados e aguarda seu encerramento real. Aplicação, recuperação e fixtures usam essa barreira; o teste não suprime erros do pool nem usa um atraso fixo para esconder a corrida.
 
 Não foi adicionada retentativa automática de escrita. Após conflito, é necessário reavaliar o estado/revisão; após resultado de commit incerto, a repetição deve usar a mesma chave idempotente. Repetir somente o último SQL ou alterar a revisão automaticamente seria inseguro. A documentação PostgreSQL recomenda refazer a transação e sua lógica de decisão, não apenas um comando isolado. [Tratamento oficial](https://www.postgresql.org/docs/17/mvcc-serialization-failure-handling.html), [transações node-postgres](https://node-postgres.com/features/transactions).
 
@@ -47,7 +48,7 @@ Não foi adicionada retentativa automática de escrita. Após conflito, é neces
 
 | Alteração | Arquivos | Impacto |
 | --- | --- | --- |
-| Classificação e executor transacional | `lib/persistence/postgres-errors.ts`, `transaction.ts`, `postgres.ts`, `lib/media.ts` | Infraestrutura PostgreSQL/mídia; contratos públicos D1 preservados. |
+| Classificação, executor e fechamento de conexões | `lib/persistence/postgres-errors.ts`, `transaction.ts`, `pool-lifecycle.ts`, `postgres.ts`, `lib/media.ts`, `lib/postgres-backup.mjs` | Infraestrutura PostgreSQL/mídia/recuperação; contratos públicos D1 preservados. |
 | Regressões e fixtures | `tests/postgres-transactions.test.mjs`, `postgres-stability.test.mjs`, `support/postgres-fixture.mjs` | Bancos/papéis de QA exclusivos, desmontados após fechar conexões. |
 | Preparação desacoplada | `lib/integrations/*`, `scripts/simulate-access-devices.mjs`, `tests/integration-preparation.test.mjs` | Contrato e simulação; sem registro no runtime de produção ou conexão real. |
 | Verificações | `package.json`, `.github/workflows/quality.yml` | Novos testes PostgreSQL e lint específico obrigatório; nenhuma dependência npm adicional. |
@@ -57,12 +58,13 @@ Não foi adicionada retentativa automática de escrita. Após conflito, é neces
 
 ## Resultados locais desta entrega
 
-- Suíte geral final: **195 testes, 193 aprovados e dois reservados de navegador/HTTPS ignorados nessa execução; zero falhas**.
+- Suíte geral final: **196 testes, 194 aprovados e dois reservados de navegador/HTTPS ignorados nessa execução; zero falhas**.
 - Execução específica com navegador e gateway habilitados: **18 testes aprovados, zero ignorados**, incluindo os dois ensaios reservados, retomada na interface e recuperação de backup.
 - Novos ensaios reais de estabilidade: oito casos aprovados, com vinte pares concorrentes, serialização, deadlock coordenado por bloqueios, unicidade, mídia, uso tardio de conexão e replay após encerrar/reabrir conexões.
 - TypeScript, lint específico e build nativo PostgreSQL aprovados. O simulador executou sem conexão de hardware e sem mudança de banco.
 - A conferência somente leitura da base local conservou as 19 tabelas operacionais e suas 38 linhas, incluindo 13 registros e um usuário; papel de aplicação sem superusuário e sem UPDATE de auditoria. Nenhuma migração foi aplicada nesta entrega.
 - O lint global permanece com as 64 pendências verificadas na baseline; não foi declarado aprovado. A validação remota do incremento é registrada na PR, sem merge ou deploy automático.
+- Na conclusão em 7/11, a corrida de fechamento observada no primeiro CI foi corrigida e recebeu regressão própria. O teste anterior de mídia/API também passou a usar o fixture comum. A reprodução local do caminho do CI, sem ferramentas locais de recuperação nem navegador, passou em 39 casos e ignorou somente os três ensaios opcionais; sem erro assíncrono.
 
 ## Executar e validar
 

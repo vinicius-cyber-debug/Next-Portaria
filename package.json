@@ -22,7 +22,7 @@
     "backup:full": "node --experimental-strip-types scripts/application.mjs backup",
     "start:secure": "node scripts/start-secure.mjs",
     "lint": "eslint .",
-    "lint:stability": "eslint lib/persistence lib/integrations lib/media.ts scripts/simulate-access-devices.mjs tests/postgres-stability.test.mjs tests/postgres-transactions.test.mjs tests/integration-preparation.test.mjs tests/support/postgres-fixture.mjs",
+    "lint:stability": "eslint lib/persistence lib/integrations lib/media.ts lib/postgres-backup.mjs scripts/simulate-access-devices.mjs tests/postgres.test.mjs tests/postgres-stability.test.mjs tests/postgres-transactions.test.mjs tests/integration-preparation.test.mjs tests/support/postgres-fixture.mjs",
     "db:generate": "drizzle-kit generate",
     "db:setup": "node --experimental-strip-types scripts/setup-database.mjs",
     "db:admin": "node --experimental-strip-types scripts/create-local-admin.mjs",

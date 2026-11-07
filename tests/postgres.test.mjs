@@ -1,12 +1,11 @@
+import {hasPostgres,withPostgresFixture} from './support/postgres-fixture.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile,mkdir,mkdtemp,rm,writeFile} from 'node:fs/promises';
-import {existsSync} from 'node:fs';
 import {resolve,join} from 'node:path';
 import {tmpdir} from 'node:os';
 import {randomUUID,randomBytes,createHash} from 'node:crypto';
-import pg from 'pg';
-import {PostgresDatabase,postgresSql} from '../lib/persistence/postgres.ts';
+import {postgresSql} from '../lib/persistence/postgres.ts';
 import {FileObjectStore} from '../lib/storage/filesystem.ts';
 import {migratePostgres} from '../scripts/postgres-migrations.mjs';
 import {hashPassword} from '../lib/local-auth.ts';
@@ -30,22 +29,11 @@ test('conflito de transacao anterior ao comando retorna HTTP 409',async()=>{
  const response=await handleApi(new Request('http://127.0.0.1/api/state'),provider);assert.equal(response.status,409);assert.equal((await response.json()).error.code,'REVISION_CONFLICT');
 });
 
-const localPath=resolve('.porto-runtime/postgres.json');
-const supplied=process.env.PORTO_TEST_POSTGRES_CONFIG?JSON.parse(process.env.PORTO_TEST_POSTGRES_CONFIG):null;
-test('PostgreSQL real: migracoes, API, concorrencia, arquivos privados e recuperacao',{skip:!supplied&&!existsSync(localPath),timeout:180000},async t=>{
- const local=existsSync(localPath)?JSON.parse(await readFile(localPath,'utf8')):null;
- const owner=supplied??JSON.parse(await readFile(local.adminFile,'utf8'));
- const token=randomUUID().replaceAll('-',''),database='portaria_qa_'+token,role='qa_'+token;
- const control=new pg.Pool({...owner,database:'postgres'}),password='QA-'+randomBytes(20).toString('hex');
+test('PostgreSQL real: migracoes, API, concorrencia, arquivos privados e recuperacao',{skip:!hasPostgres,timeout:180000},async t=>{
  const temp=await mkdtemp(join(tmpdir(),'portaria-postgres-')),mediaRoot=join(temp,'objects');await mkdir(mediaRoot);
- const appPassword=randomBytes(32).toString('hex');
- let admin,db,visitId,attachmentId;
- try{
-  await control.query(`CREATE ROLE "${role}" LOGIN PASSWORD '${appPassword}' NOSUPERUSER NOCREATEDB NOCREATEROLE`);
-  await control.query(`CREATE DATABASE "${database}"`);admin=new pg.Pool({...owner,database});
+ try{await withPostgresFixture(async({owner:admin,db,database,role,control,token,password:appPassword,adminConfig:owner,localConfig:local})=>{
+  const password='QA-'+randomBytes(20).toString('hex');let visitId,attachmentId;
   await migratePostgres(admin);await migratePostgres(admin);
-  await admin.query(`GRANT USAGE ON SCHEMA public TO "${role}"; GRANT SELECT,INSERT,UPDATE,DELETE ON ALL TABLES IN SCHEMA public TO "${role}"; GRANT USAGE,SELECT ON ALL SEQUENCES IN SCHEMA public TO "${role}"; REVOKE UPDATE,DELETE ON operational_audit FROM "${role}"; REVOKE ALL ON portaria_migrations FROM "${role}"`);
-  db=new PostgresDatabase({...owner,database,user:role,password:appPassword,max:5});
   const bucket=new FileObjectStore(mediaRoot),media=new MediaService(db,bucket),origin='http://127.0.0.1:5199';let cookie='',incidentId;
   const request=async(path,{method='GET',body,cookie:override,headers={}}={})=>{
    const raw=body instanceof Uint8Array||body instanceof ReadableStream;
@@ -235,7 +223,5 @@ test('PostgreSQL real: migracoes, API, concorrencia, arquivos privados e recuper
    const encrypted=join(destination,'00000000.pgenc'),contents=await readFile(encrypted);contents[40]^=1;await writeFile(encrypted,contents);
    await assert.rejects(verifyPostgresBackup({config,backupDirectory:destination,keyFile}),/criptogr|recuperado|integridade/i);
   });
- }finally{
-  if(db)await db.close();if(admin)await admin.end();await control.query(`DROP DATABASE IF EXISTS "${database}" WITH (FORCE)`);await control.query(`DROP ROLE IF EXISTS "${role}"`);await control.end();await rm(temp,{recursive:true,force:true});
- }
+ });}finally{await rm(temp,{recursive:true,force:true});}
 });
