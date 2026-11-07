@@ -79,3 +79,7 @@ Migrações distribuídas e seus metadados devem permanecer em `drizzle/`. Alter
 - A aplicação atende uma unidade e exige conexão para gravar. A cópia carregada permite consulta de contingência, sem fila de gravações offline.
 
 O [README](../README.md) apresenta as funcionalidades. O [guia de operação local](OPERACAO-LOCAL.md) descreve instalação, autenticação, rede e recuperação.
+
+## Evolução para equipamentos físicos
+
+O [diagnóstico da fase 1](DIAGNOSTICO-EVOLUCAO.md) registra o estado verificado e as correções transacionais. O [integrador Control iD proposto](INTEGRACAO-CONTROLID.md) define o contrato de leitura, o simulador isolado e os critérios antes de conectar hardware. Cadastro, filas duráveis, comandos, biometria e callbacks reais continuam pendentes da validação de modelo/firmware; o simulador não é carregado pelo runtime operacional.
