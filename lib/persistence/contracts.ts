@@ -25,4 +25,4 @@ export type MediaUser={id:string;name:string;role:string;status:string;capabilit
 export type MediaContext={user:MediaUser;authorize:(database?:Database)=>Promise<MediaUser>};
 export type MediaHandler={handle:(request:Request,context:MediaContext)=>Promise<Response>};
 export type PortoHandler={enabled:boolean;handle:(request:Request,context:MediaContext,body?:Record<string,unknown>)=>Promise<Response>;restoreGuard:()=>Promise<PreparedStatement[]>};
-export type RuntimeResources={db:Database;bucket:ObjectStore;media?:MediaHandler;porto?:PortoHandler;jobToken?:string;allowHttpLan?:boolean};
+export type RuntimeResources={db:Database;bucket:ObjectStore;media?:MediaHandler;porto?:PortoHandler;monitor?:MediaHandler;jobToken?:string;allowHttpLan?:boolean};

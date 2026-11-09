@@ -10,7 +10,7 @@ import {validateDirectoryPerson} from './person-directory.mjs';
 import {APP_VERSION} from './version.mjs';
 
 type User = {id:string;email:string;name:string;role:string;status:string;mustChangePassword?:boolean;createdAt?:string;updatedAt?:string;capabilities?:Record<string,boolean>;overrides?:Record<string,boolean>};
-type Resources = {bucket?:R2Bucket;media?:MediaHandler;porto?:PortoHandler;jobToken?:string;allowHttpLan?:boolean};
+type Resources = {bucket?:R2Bucket;media?:MediaHandler;porto?:PortoHandler;monitor?:MediaHandler;jobToken?:string;allowHttpLan?:boolean};
 type Audit = Record<string, unknown> & {id:string;at:string};
 type State = {version:number;settings:Record<string,any>;visitors:Record<string,any>[];audit:Audit[];berths:string[];[collection:string]:any};
 type Snapshot = {state:State;revision:number};
@@ -325,6 +325,12 @@ export async function handleApi(request:Request,db:D1Database,resources:Resource
     requireRead(user);
     if(path==='/api/auth/change-password')return await changeOwnPassword(request,db,user);
     if(user.mustChangePassword)reject('PASSWORD_CHANGE_REQUIRED','Altere sua senha inicial antes de acessar a operação.',403);
+    if(path==='/api/integrations/idsecure/monitor'){
+      requireCapability(user,'documentView');
+      if(request.method!=='GET')reject('METHOD_NOT_ALLOWED','Método não permitido.',405);
+      if(!resources.monitor)return response({source:'iDSecure',status:'unconfigured',lastSuccessAt:null,pollIntervalMs:3000,events:[],passageEvidence:'not_validated'});
+      return await resources.monitor.handle(request,{user,authorize:async(connection=db)=>{const fresh=await withCapabilities(connection,await identify(request,connection));requireRead(fresh);if(fresh.mustChangePassword)reject('PASSWORD_CHANGE_REQUIRED','Altere sua senha inicial.',403);return fresh;}});
+    }
     if(path.startsWith('/api/porto/')){
       if(!resources.porto)return response({error:{code:'PORTO_UNAVAILABLE',message:'Gestão do Porto exige a instalação PostgreSQL nativa.'}},503);
       const body=request.method==='POST'?await readBody(request):undefined;

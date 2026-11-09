@@ -3,6 +3,7 @@ import { CAPABILITY_DEFINITIONS, defaultCapabilities, visibleSnapshot } from '..
 import { assertActiveCollection } from '../lib/module-policy.mjs';
 import { assertVisitEligibility } from '../lib/physical-access.mjs';
 import { createDemoSeed, DEMO_USERS } from './seed.mjs';
+import {demoMonitor} from './monitor.mjs';
 
 const ORIGIN='https://demo.next-portaria.invalid';
 const json=(value,status=200)=>Response.json(value,{status,headers:{'Cache-Control':'no-store'}});
@@ -31,6 +32,7 @@ function filteredRecords(state,query) {
 /** A closed API emulator: every response is local, including unknown or absolute URLs. */
 export function createDemoApi({now=()=>new Date().toISOString(),origin=ORIGIN}={}) {
   let state=createDemoSeed(now()),revision=1;
+  const monitorStartedAt=Date.parse(now());
   const actor=clone(DEMO_USERS[0]),passes=new Map(),readNotices=new Set(),commands=new Map();
   const snapshot=()=>visibleSnapshot({state,revision},actor);
   const notices=()=>state.visitors.filter(visit=>visit.status==='pending').map(visit=>({id:`demo_notice_${visit.id}`,kind:'visitor_pending',entityId:visit.id,section:'visitors',title:'Solicitação aguardando autorização',description:`${visit.name} · ${visit.purpose}`,createdAt:visit.requestedAt,readAt:readNotices.has(`demo_notice_${visit.id}`)?now():null}));
@@ -44,6 +46,7 @@ export function createDemoApi({now=()=>new Date().toISOString(),origin=ORIGIN}={
       const rawBody=init.body??(input instanceof Request&&method!=='GET'?await input.text():undefined);
       const body=typeof rawBody==='string'&&rawBody?JSON.parse(rawBody):{};
       const path=url.pathname.slice(4),query=url.searchParams;
+      if(method==='GET'&&path==='/integrations/idsecure/monitor')return json(demoMonitor(state,now(),monitorStartedAt));
       if(method==='GET'&&path==='/session')return json({user:clone(actor),capabilities:actor.capabilities,environment:'demo',demo:true});
       if(method==='GET'&&path==='/state')return json(snapshot());
       if(method==='GET'&&path==='/sync')return json(Number(query.get('since'))===revision?{revision,user:clone(actor),capabilities:actor.capabilities,unchanged:true}:{...snapshot(),reset:true});

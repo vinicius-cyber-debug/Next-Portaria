@@ -19,6 +19,16 @@ test('demonstração usa um estado sintético válido com acesso, pessoas, veíc
   assert.ok(state.incidents.length>=3);
   assert.equal(state.stays.length+state.charges.length,0);
 });
+test('apresentação inclui autorização prévia, barco sem saída confirmada e funcionário em intervalo',()=>{
+ const state=createDemoSeed(now());assert.ok(state.people.some(person=>person.authorization?.status==='active'));
+ assert.ok(state.visitors.some(visit=>visit.status==='unconfirmed'&&visit.leftAt===null));assert.ok(state.visitors.some(visit=>visit.status==='temporarily_out'&&visit.outings.at(-1).returnedAt===null));
+ const ready=state.people.find(person=>person.name==='Beatriz Monteiro (fictícia)');assert.equal(ready.authorization.status,'active');assert.equal(state.visitors.some(visit=>visit.personId===ready.id),false);
+});
+test('monitor da apresentação é explicitamente sintético e avança sem registrar presenças',async()=>{
+ let clock=Date.now();const demo=createDemoApi({now:()=>new Date(clock).toISOString()}),before=await (await demo.request('/api/state')).json(),first=await (await demo.request('/api/integrations/idsecure/monitor')).json();
+ assert.equal(first.mode,'simulation');assert.equal(first.events.length,8);assert.ok(first.events.every(event=>event.photoUrl.startsWith('data:image/svg+xml,')&&event.passageConfirmed===false));
+ clock+=15000;const next=await (await demo.request('/api/integrations/idsecure/monitor')).json();assert.notEqual(next.events[0].id,first.events[0].id);assert.notEqual(next.events[0].name,first.events[0].name);assert.deepEqual((await (await demo.request('/api/state')).json()).state,before.state);
+});
 
 test('operações de demonstração são temporárias e não alteram outra sessão',async()=>{
   const first=api(),second=api(),snapshot=await (await first.request('/api/state')).json();
