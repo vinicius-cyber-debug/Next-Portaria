@@ -2,6 +2,8 @@
 
 Este pacote prepara a execução no servidor; sua publicação não instala nem altera o servidor remotamente. A referência desta instalação é Windows Server 2019, IP `192.168.0.2`, HTTPS `8443`, rede `192.168.0.0/24`. Confirme esses dados na inspeção. O destino externo de backup ainda precisa ser definido pela empresa.
 
+Na candidata `0.8.0-rc.1`, Gestão do Porto inclui cobrança por acesso, adiantamentos e saída quitada. Leia [as regras](GESTAO-PORTO.md) e execute o [aceite empresarial](HOMOLOGACAO-PORTO.md). O instalador exige `-Homologacao` para versões `-rc.N`; esse sinalizador não comprova o aceite nem autoriza utilizar a base operacional em testes. As tarefas e o serviço possuem nomes reservados: não tente instalar uma segunda instância paralela na mesma máquina sem planejar esses nomes e a infraestrutura.
+
 ## Pré-requisitos
 
 - PowerShell como administrador, Node.js 22.13+ e binários completos PostgreSQL 17 (bin/lib/share), em pastas permanentes. O pacote usa o PostgreSQL indicado sem reinstalar nem alterar serviços de terceiros.
@@ -45,6 +47,8 @@ Execute a instalação no mesmo terminal interativo:
 ```powershell
 .\server\INSTALAR-SERVIDOR.ps1 @parametros
 ```
+
+Para a candidata de homologação, acrescente explicitamente `-Homologacao -EnablePorto` ao comando na instalação selecionada. `EnablePorto` grava `portoEnabled` no `current.json`; a tarefa `RUN-SERVER.ps1` carrega essa opção no ambiente sem depender do PowerShell ou do login. O padrão permanece desativado, e uma atualização preserva a habilitação anterior. Para desativar, pare a tarefa, altere somente `portoEnabled` para `false` no arquivo de controle e reinicie a tarefa. Nenhum dado do módulo é apagado.
 
 O administrador existente é preservado. Se não houver administrador, informe a senha diretamente no terminal, sem chat, argumentos ou arquivo. Em uma execução pelo Codex sem terminal interativo, o provisionamento falha e a ativação é interrompida; abra um terminal interativo para concluir. Uma falha deixa os diretórios e dados preparados para diagnóstico, sem apagá-los. Não repita a instalação sobre a mesma release nem reinicialize o cluster: investigue o ponto da falha e continue a preparação existente.
 

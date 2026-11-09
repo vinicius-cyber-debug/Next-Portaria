@@ -1,121 +1,107 @@
-# Gestão do Porto — Fase 1
+# Gestão do Porto — cobrança por acesso e financeiro
 
-Estado em 09/11/2026: fundação em desenvolvimento na branch `feat/porto-foundation`. O módulo é exclusivo do runtime Node/PostgreSQL e fica desativado por padrão. Esta fase serve para homologação: não possui saída, faturamento, recebimento ou fechamento de caixa. Não deve ser usada como operação definitiva.
+Versão candidata `0.8.0-rc.1`, destinada à homologação da portaria e do financeiro. O módulo usa Node/PostgreSQL 17 e permanece desativado por padrão. Publicar a release não atualiza o servidor automaticamente.
 
-## Escopo e regras
+## Regras confirmadas em 09/11/2026
 
-O módulo registra solicitação de descida, aprovação ou recusa justificada, conferência do veículo, entrada e permanência ativa. Reutiliza os cadastros `fleet`, `people` e os usuários existentes. Não altera automaticamente a presença física da portaria. A embarcação de destino é um texto obrigatório; não reativa os antigos cadastros de embarcações, atracações ou financeiro.
+- A tabela física fornecida cobra **por descida/acesso**, não por diária. Cada nova entrada inicia outra operação e outro valor único, mesmo no mesmo dia. A passagem da meia-noite não aumenta um acesso.
+- A empresa pagadora deve estar identificada no cadastro de empresas. Pessoa física não é opção de pagador.
+- Antes da saída, o financeiro recebe **adiantamentos**, inclusive parciais. A saída fica bloqueada até o saldo ser zero ou haver desconto/isenção integral autorizado.
+- A portaria confere a saída. Na mesma transação, a aplicação encerra a permanência e emite uma única cobrança definitiva, vinculada aos adiantamentos e ajustes. Uma falha reverte tudo.
+- Dinheiro recebido, cobrança emitida, saldo e valor bruto de acessos em andamento são indicadores distintos. A saída física não registra um novo recebimento.
+- Adiantamentos e pagamentos não podem exceder o saldo. Descontos não podem exceder o saldo ainda não recebido. Para corrigir um recebimento, use estorno; para corrigir desconto, use estorno do desconto. Registros anteriores não são apagados.
+- Um estorno autorizado depois da saída pode reabrir saldo de uma cobrança. A saída histórica permanece preservada. O saldo pode ser quitado em novo pagamento; vencido significa vencimento anterior à data atual de Manaus.
+- Todas as datas operacionais usam o relógio do servidor. A apresentação e os períodos de relatório usam `America/Manaus`.
 
-As tarifas oficiais e categorias começam vazias, conforme decisão da empresa. Nenhum dado fictício é inserido por migração. Sem tarifa vigente da categoria, solicitação e entrada são recusadas. Somente o administrador publica uma nova tabela, com justificativa e vigência atual ou futura. Cada tabela contém o conjunto completo das categorias aplicáveis; a categoria não herda preço de uma versão anterior.
+### Preservação do legado
 
-O preço aplicável é fixado na **entrada**, junto com a versão da tabela e a categoria. Alterações futuras não mudam esse registro. A aplicação utiliza centavos inteiros, sem cálculo monetário em ponto flutuante. O limite técnico por diária é 1.000.000.000 de centavos; valores zero, descontos e isenções aguardam definição de regras.
+A migração `005_porto_financeiro.sql` marca tabelas e permanências anteriores como `diaria`, sem recalcular ou alterar seus valores. Essas permanências mantêm a fórmula de calendário da Fase 1: diferença entre datas locais + 1, primeira diária imediata e sem proporcionalidade. A modalidade e a tarifa são copiadas na entrada e permanecem imutáveis. Novas publicações na interface são por acesso. A API também reconhece a modalidade explícita `diaria` para compatibilidade com o histórico.
 
-A diária segue datas de calendário em `America/Manaus`, independentemente do fuso do computador, navegador ou da portaria geral:
+Não foram reativados os módulos antigos de atracação, embarcações, `STAY_OPEN`, `CHARGE_PAYMENT` ou `MONTH_CLOSE`. O destino da descida continua um texto; o acesso de pessoas é independente.
 
-`diárias = data local da referência − data local da entrada + 1`
+## Tabela física para revisão e publicação
 
-| Entrada → referência | Diárias |
+No formulário Nova tabela tarifária, **Preencher com a tabela da foto** apenas preenche um rascunho. O administrador confere valores, informa a justificativa e publica uma versão nova. A migração não insere preços, não publica automaticamente e não retroage à data escrita na foto.
+
+| Categoria terrestre | Valor por acesso |
 | --- | ---: |
-| Mesmo dia, ainda que poucos minutos | 1 |
-| 23:59 → 00:01 do dia seguinte | 2 |
-| Dia 10 → dia 14 | 5 |
+| Moto | R$ 25,00 |
+| Triciclo | R$ 50,00 |
+| Fiorino | R$ 100,00 |
+| Montana | R$ 100,00 |
+| HR | R$ 150,00 |
+| 3/4 — caminhão pequeno, 1.500 kg | R$ 250,00 |
+| Caminhão M — até 5 toneladas | R$ 300,00 |
+| Caminhão G | R$ 500,00 |
+| Muck + máquina em cima | R$ 1.000,00 |
+| Carreta | R$ 1.000,00 |
 
-Não há tolerância nem proporcionalidade. A primeira diária começa imediatamente na entrada e a próxima à meia-noite local. Na permanência aberta, a referência é o relógio do servidor, obtido depois do bloqueio da transação. A estimativa não gera cobranças à meia-noite e não representa receita recebida. Datas de entrada enviadas pelo cliente são ignoradas.
+Lanchas e jet ski não entram no cadastro de veículos terrestres desta entrega. A finalidade e a operação desses itens precisam ser confirmadas em um módulo próprio. Cada tabela publicada contém todas as categorias aplicáveis; não há herança silenciosa de preço de uma versão anterior. A categoria da solicitação exige escolha explícita, sem assumir a primeira opção.
 
-## Matriz aprovada para a Fase 1
+## Permissões aprovadas
 
-| Perfil existente | Consulta operacional | Solicitar | Aprovar / recusar | Registrar entrada | Valores | Publicar tarifas | Histórico do Porto |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| Administrador (`admin`) | Sim | Sim | Sim | Sim | Sim | Sim | Sim |
-| Diretoria / gestor (`director`) | Sim | Sim | Sim | Sim | Sim | Não | Sim |
-| Portaria (`gate`) | Sim | Sim | Não | Sim | Não | Não | Não |
-| Financeiro (`finance`) | Sim | Não | Não | Não | Sim | Não | Não |
-| Operação / consulta (`operations`, `reader`) | Não | Não | Não | Não | Não | Não | Não |
+| Operação | Portaria | Diretoria | Financeiro | Administrador |
+| --- | --- | --- | --- | --- |
+| Solicitar | Sim | Sim | Não | Sim |
+| Aprovar/recusar | Não | Sim | Não | Sim |
+| Registrar entrada e saída quitada | Sim | Sim | Não | Sim |
+| Consultar valores e recibos | Não | Sim | Sim | Sim |
+| Definir empresa pagadora | Não | Não | Sim | Sim |
+| Registrar adiantamento/pagamento | Não | Não | Sim | Sim |
+| Desconto, isenção e estornos | Não | Sim | Não | Sim |
+| Conferir e fechar caixa | Não | Não | Sim | Sim |
+| Publicar tarifas | Não | Não | Não | Sim |
+| Indicadores e exportação financeira | Não | Sim | Sim | Sim |
+| Histórico geral do Porto | Não | Sim | Não | Sim |
 
-O bloqueio individual `gateOperate: false` também impede entrada no Porto, exceto para administrador. A retirada de `auditView` da diretoria impede o histórico. Essas regras são conferidas no servidor, inclusive em operações repetidas; ocultar botões não é a proteção de acesso. A API remove os campos monetários da resposta à portaria.
+Operação e Consulta não acessam o módulo. Bloqueios individuais `gateOperate: false`, `exceptionApprove: false`, `dataExport: false` e `auditView: false` também são respeitados nas respectivas ações, exceto para administrador. Para diretoria, entrada/saída seguem a matriz do Porto, sem liberar os comandos aposentados. Financeiro consulta seu histórico de movimentos/recibos, sem acesso à auditoria geral.
 
-Com o módulo habilitado, o administrador pode criar ou atribuir o perfil **Financeiro do Porto (consulta)** em Usuários e permissões. Sem a habilitação, a criação desse perfil continua bloqueada e contas financeiras históricas mantêm a compatibilidade anterior. Nenhum comando financeiro aposentado é liberado por esse perfil.
+As permissões são verificadas novamente dentro da transação. Valores são retirados da resposta da portaria; ela recebe apenas a indicação de liberação da saída. O administrador pode cadastrar o perfil Financeiro do Porto quando o módulo está habilitado.
 
-## Estrutura e integridade
+## Banco e integridade
 
-O cálculo puro e as validações ficam em `lib/porto/domain.mjs`; as transações, consultas paginadas e autorização ficam em `lib/porto/service.ts`; a interface está em `app/porto-panel.tsx`.
+`004_porto.sql` criou tarifas versionadas, solicitações, permanências, eventos e idempotência. `005_porto_financeiro.sql` acrescenta modalidade e as tabelas:
 
-A migração aditiva `database/postgres/004_porto.sql` cria:
-
-| Tabela | Finalidade |
+| Tabela | Responsabilidade |
 | --- | --- |
-| `porto_tabelas_tarifarias` | Versões e vigências imutáveis por unidade |
-| `porto_tarifas` | Categorias e centavos de cada versão |
-| `porto_solicitacoes` | Pedido e decisão única, com dados originais preservados |
-| `porto_permanencias` | Entrada e cópia imutável do preço contratado |
-| `porto_eventos` | Eventos ordenados e imutáveis, com ator e horário |
-| `porto_comandos` | Idempotência por chave, ator e conteúdo |
+| `porto_pagadores` | Versões da identificação da empresa, com nome preservado |
+| `porto_cobrancas` | Cobrança definitiva única por permanência, emitida na saída |
+| `porto_pagamentos` | Adiantamentos, pagamentos e estornos, com números de recibo |
+| `porto_ajustes` | Descontos/isenções e seus estornos autorizados |
+| `porto_caixa_fechamentos` | Conferência imutável de cada lote |
+| `porto_caixa_itens` | Movimentos pertencentes a cada fechamento, sem repetição |
 
-As migrações anteriores não são alteradas. A unidade desta instalação corresponde a `operational_settings.id = 'settings'`; esta fase não implementa administração de múltiplas unidades. As chaves estrangeiras ligam veículo, motorista opcional, solicitação e tarifa, incluindo o valor exato. Um índice parcial impede duas permanências abertas para o mesmo veículo/unidade.
+A função SQL `porto_saldo` calcula valores em centavos inteiros. Gatilhos e privilégios protegem os registros; a aplicação só tem atualização nas três colunas necessárias à saída. Uma restrição diferida exige cobrança consistente e saldo zero ao concluir a saída. Descontos, pagamentos e estornos têm verificações de saldo e origem também no banco. A unidade é `operational_settings.id = settings`; não há gestão de múltiplas unidades nesta versão.
 
-As escritas são transacionais: alteração, evento e registro idempotente confirmam juntos. A falha de auditoria reverte a entrada. Um bloqueio compartilhado com a operação principal serializa alterações de sessão/permissões e restauração; a sessão é revalidada dentro da transação. Repetir a mesma chave e conteúdo retorna o resultado anterior, filtrado pelas permissões atuais; reutilizar a chave com outro conteúdo ou ator retorna conflito.
+As escritas usam a mesma conexão e transação da auditoria e idempotência, serializadas com a autorização e as demais operações da base. A mesma chave e conteúdo reproduzem o resultado; conteúdo ou ator diferentes causam conflito. A saída duplicada não emite outra cobrança. Preços e modalidade não mudam após a entrada.
 
-Privilégios da aplicação e gatilhos impedem alteração/exclusão de tarifas, permanências, eventos e comandos. Solicitação só transita de pendente para aprovada ou recusada. A Fase 1 bloqueia o encerramento da permanência no banco: a Fase 2 deverá substituir essa proteção junto com a criação atômica da cobrança, em nova migração.
+A empresa pode ser corrigida por novo registro antes de haver recebimento líquido e antes da saída. Recibos anteriores conservam a identificação que tinham no recebimento. Tarifas, cobranças, recebimentos, ajustes, eventos e fechamentos são imutáveis. Cadastros reutilizados mantêm suas chaves estrangeiras; excluir um cadastro referenciado não remove o histórico.
 
-## API autenticada
+## Telas e API
 
-As rotas usam sessão, troca obrigatória de senha, proteção de origem e transporte seguro já existentes. Paginação aceita até 50 registros por página.
+As abas operacionais reúnem solicitações e veículos presentes. Financeiro permite abrir conta, identificar empresa, receber, consultar recibos e autorizar ajustes conforme o perfil. O recibo e a cobrança possuem impressão de controle interno, **não fiscal**. Registrar Pix, cartão ou transferência é uma conferência manual do operador, não uma integração com banco/adquirente. Não informe dados de cartão no campo de referência.
 
-| Método / rota `/api/porto/…` | Uso |
-| --- | --- |
-| `GET status` | Habilitação, fase, fuso e permissões |
-| `GET resumo` | Pendências, aprovadas sem entrada, presentes e estimativa permitida |
-| `GET tarifas` | Tabela vigente e categorias |
-| `GET tabelas` | Histórico paginado das versões, somente administrador |
-| `GET cadastros?collection=fleet\|people&q=…` | Busca de cadastros ativos, sem documentos ou e-mails |
-| `GET solicitacoes` | Consulta paginada por placa/motorista e situação |
-| `GET permanencias` | Permanências e prévia atualizada pelo servidor |
-| `GET eventos` | Histórico paginado, conforme matriz |
-| `POST comandos` | `{tipo, payload, idempotencyKey}` |
+Indicadores do Porto aceita período de até 366 dias, categoria e empresa. Exibe entradas, saídas, permanência média, cobrado bruto, recebido bruto, estornado, recebido líquido e saldos atuais, com tabelas por dia e categoria e exportação CSV protegida contra fórmulas. Recebidos incluem adiantamentos. Os saldos representam a posição atual, independentemente do período de movimentos consultado. A consulta detalhada exibe até 200 movimentos e 200 ajustes recentes; o banco mantém todo o histórico.
 
-Comandos disponíveis: `TARIFAS_PUBLICAR`, `SOLICITAR_DESCIDA`, `APROVAR_DESCIDA`, `RECUSAR_DESCIDA`, `REGISTRAR_ENTRADA`. Entrada exige solicitação aprovada, cadastros ainda ativos, placa preservada e `veiculoConferido: true`. O servidor rejeita demais comandos, incluindo saída, cobrança e pagamento.
+O caixa trabalha com **lotes de movimentos ainda não fechados**, abrangendo todos os operadores da unidade. Informa saldo inicial e dinheiro conferido; esperado = saldo inicial + entradas em dinheiro − devoluções em dinheiro. A diferença e a justificativa ficam preservadas. Movimentos posteriores entram no próximo lote, inclusive no mesmo dia. O caixa não altera recibos nem comprova conciliação bancária.
 
-## Homologação e recuperação
+As rotas `/api/porto` usam sessão, proteção de origem, senha obrigatoriamente trocada e HTTPS da aplicação. Além das rotas operacionais, há `GET contas`, `contas/:id`, `recibos/:id`, `cobrancas/:id`, `caixa`, `caixa/:id`, `relatorios` e `relatorios/exportar`. Listas são paginadas, com no máximo 50 registros por página.
 
-Use uma instalação de homologação separada, com banco e armazenamento próprios. Não aponte testes de navegador para o servidor operacional. Não compartilhe credenciais no chat ou no Git. O ambiente D1/SQLite e a demonstração em memória não implementam este módulo.
+`POST comandos` recebe `{tipo, payload, idempotencyKey}`. Novos tipos: `DEFINIR_PAGADOR`, `REGISTRAR_PAGAMENTO`, `ESTORNAR_PAGAMENTO`, `CONCEDER_DESCONTO`, `ESTORNAR_DESCONTO`, `REGISTRAR_SAIDA`, `FECHAR_CAIXA`. Ajustes e operações financeiras exigem justificativa. A saída exige conferência do veículo e quitação, sem liberação por exceção de dívida.
 
-1. Preserve a versão em uso e pare os processos dessa instalação antes de uma atualização de esquema. Produza e confira um backup completo com `npm run backup:full`, conforme [PostgreSQL e recuperação](POSTGRESQL.md). Em uma instalação gerenciada como serviço, pare também seu supervisor pelo procedimento documentado dessa instalação.
-2. Instale as dependências do lockfile com `npm ci`; execute `npm run check`, `npm run lint:porto` e `npm run build`. Para os testes com PostgreSQL, disponibilize uma conta de QA capaz de criar bancos/roles descartáveis, pelo mecanismo `PORTO_TEST_POSTGRES_CONFIG` já usado pela suíte. A senha pertence à configuração privada, não ao código.
-3. Na cópia de homologação, aplique `npm run postgres:migrate`. O migrador valida os checksums anteriores, aplica `004_porto.sql` e ajusta privilégios; a aplicação não migra automaticamente ao iniciar.
-4. Defina a variável no processo **servidor** e reinicie essa cópia, pois os recursos são criados e armazenados em cache no início:
+## Homologação, atualização e backup
 
-   ```powershell
-   $env:PORTO_PORTO_ENABLED = 'true'
-   npm start
-   ```
+1. Leia [o roteiro de homologação](HOMOLOGACAO-PORTO.md) e valide o ciclo com um responsável da portaria, um do financeiro e a diretoria. Testes automatizados não substituem esse aceite empresarial.
+2. Use uma instalação de homologação com dados próprios. Preserve a instalação ativa e produza um backup completo verificado antes de migrar qualquer base anterior. Não execute testes contra o servidor operacional.
+3. Execute dependências do lockfile, tipos, testes e compilação. Aplique `npm run postgres:migrate` na instalação selecionada. Os arquivos anteriores não são editados; checksums divergentes interrompem a migração. A aplicação não migra automaticamente ao iniciar.
+4. Para homologação local: defina `$env:PORTO_PORTO_ENABLED = 'true'` no processo servidor e inicie a aplicação compilada. É necessário reiniciar para alterar a habilitação. D1/SQLite e a demonstração em memória não implementam o módulo.
+5. Para Windows Server, use o pacote identificado e o [procedimento de implantação](IMPLANTACAO-SERVIDOR.md). O instalador aceita `-EnablePorto`; a tarefa sem login lê `portoEnabled` de `current.json`. Release candidata exige `-Homologacao`. Os nomes reservados NextPortaria-* não permitem uma segunda instalação paralela sem planejamento de infraestrutura. Não aponte um ensaio para os dados ativos.
+6. Confirme HTTPS confiável, funcionamento após reiniciar sem login e restauração do backup externo. O destino externo e a pasta restrita da chave precisam existir; os exemplos da documentação não são destinos configurados.
 
-   Para serviço Windows, a variável precisa constar no ambiente do serviço, não apenas em um PowerShell interativo. O comando acima é para homologação local; não instala serviço nem configura HTTPS. A [implantação Windows](IMPLANTACAO-SERVIDOR.md) permanece o procedimento de infraestrutura.
-5. Confira acesso por perfil e ausência inicial de tarifas. Cadastre categorias e valores **aprovados** apenas quando fornecidos. Exercite publicação, solicitação, recusa/aprovação, conferência/entrada, tentativa duplicada e atualização de tarifa. Confira que uma permanência mantém a tarifa original e que a portaria não recebe valores pela API.
-6. Faça um backup completo após o ensaio e teste a recuperação em destino novo. Desabilitar o módulo exige remover a variável ou usar `false` e reiniciar; isso não apaga registros nem desfaz migrações.
+O backup completo usa `pg_dump` do esquema público e arquivos privados, criptografa, recupera em destino novo e compara os dados. Inclui todas as novas tabelas e gatilhos, e reaplica os privilégios. O JSON da tela Continuidade é parcial e não contém o Porto; sua restauração é bloqueada quando existem tarifas ou solicitações do módulo, inclusive se estiver desativado. Não contorne essa proteção para recuperar somente parte do financeiro.
 
-O backup completo PostgreSQL usa `pg_dump` de todo o esquema público, inclui as novas tabelas/gatilhos e os arquivos privados, e faz recuperação de verificação. A restauração reaplica os privilégios restritos. O JSON da tela de continuidade permanece parcial e **não contém Gestão do Porto**. Quando já há tabela tarifária ou solicitação do Porto, o servidor bloqueia a restauração desse JSON com `PORTO_FULL_RESTORE_REQUIRED`, inclusive com o módulo desativado. Use recuperação PostgreSQL completa em banco e pasta novos. Não remova essa proteção para recuperar somente parte dos dados.
+Na preparação desta release, os dados fictícios e migrações são exercitados em bases descartáveis de QA. A instalação operacional não é alterada remotamente. O destino externo de backup da empresa ainda precisa ser informado e validado no servidor.
 
-Nesta entrega a migração e os dados fictícios foram usados somente em bases descartáveis de QA. A base de desenvolvimento existente e o servidor operacional não foram migrados para o novo módulo. O destino de backup externo da empresa ainda precisa ser definido; a funcionalidade local não resolve essa pendência de infraestrutura.
+## Verificações
 
-## Verificações e próximas fases
-
-```powershell
-npm run check
-npm run lint:porto
-npm run test:porto
-npm run build
-npm run test:porto:browser
-```
-
-A suíte cobre datas, virada do mês/ano, ano bissexto, fuso, centavos, matriz de permissões, idempotência, concorrência, imutabilidade, falha de auditoria, restauração parcial e fluxo real em HTTPS. O teste de navegador cria sua própria base, usuários, tarifas fictícias e certificado temporário; valida seis larguras, consulta financeira e ausência de valores para portaria. As capturas ficam em `.porto-tooling/porto-review` ou no destino indicado por `PORTO_PORTO_TEST_OUTPUT`. O CI executa essas verificações em PostgreSQL 17 e preserva as capturas como artefato.
-
-Validação local de 09/11/2026: 25 testes do Porto aprovados, incluindo recuperação completa de tarifas e permanências; suíte geral com 219 aprovados e dois testes reservados para navegador; execução separada PostgreSQL/vídeo/HTTPS com 18 aprovados. O fluxo do Porto gerou 15 capturas sem erros ou violações automáticas WCAG e confirmou o descarte de resposta atrasada após trocar de aba. A regressão da interface existente passou nas 139 verificações visuais, sem overflow ou violações automáticas WCAG. As compilações nativa e Cloudflare passaram. A conferência por hashes da base de desenvolvimento preservou 19 tabelas, 38 linhas, 13 registros operacionais e um usuário. Esses resultados locais não significam que houve publicação, execução do CI remoto ou implantação no servidor.
-
-Continuam pendentes:
-
-- Fase 2: encerramento + cobrança na mesma transação, pagamentos, saldo, recibos e ajustes compensatórios.
-- Fase 3: indicadores financeiros, relatórios e fechamento de caixa.
-- Fase 4: homologação empresarial, versão publicada e implantação no servidor, HTTPS confiável, supervisão sem login e destino externo de backup validado.
-- Definições da empresa: categorias e tarifas oficiais, reentrada no mesmo dia, saída com saldo, pagador, descontos/isenções e cobrança de embarcações.
-
-Não há cobrança ou recebimento fictício apresentado como resultado da operação, nem integração de escrita com equipamentos Control iD nesta fase.
+`npm run check`, `npm run lint:porto`, `npm run test:porto`, `npm run build` e `npm run test:porto:browser`. A suíte cobre valor por acesso, calendário legado, permissões, adiantamentos parciais, concorrência, saída atômica, ajustes, estornos, recibos, relatórios, caixa e recuperação completa. O navegador usa HTTPS, banco e usuários temporários, acessibilidade e larguras desktop/tablet/celular.

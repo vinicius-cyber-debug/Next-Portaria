@@ -1,6 +1,6 @@
 {
   "name": "next-portaria",
-  "version": "0.7.0",
+  "version": "0.8.0-rc.1",
   "private": true,
   "engines": {
     "node": ">=22.13.0"
@@ -29,9 +29,9 @@
     "test": "node --experimental-strip-types --test tests/*.test.mjs",
     "test:hmr": "node tests/e2e-hmr.mjs",
     "test:ui": "node scripts/check-ui.mjs",
-    "test:porto": "node --experimental-strip-types --test tests/porto-domain.test.mjs tests/porto-postgres.test.mjs",
+    "test:porto": "node --experimental-strip-types --test tests/porto-domain.test.mjs tests/porto-postgres.test.mjs tests/porto-finance.test.mjs",
     "test:porto:browser": "node --experimental-strip-types tests/porto-browser.mjs",
-    "lint:porto": "eslint lib/porto app/porto-panel.tsx tests/porto-domain.test.mjs tests/porto-postgres.test.mjs tests/porto-browser.mjs scripts/postgres-migrations.mjs",
+    "lint:porto": "eslint lib/porto app/porto-panel.tsx app/porto-shared.tsx app/porto-finance.tsx tests/porto-domain.test.mjs tests/porto-postgres.test.mjs tests/porto-finance.test.mjs tests/porto-browser.mjs scripts/postgres-migrations.mjs",
     "lint:ui": "eslint app/ui.tsx app/app-shell.tsx app/form-steps.tsx app/access-overview.tsx scripts/check-ui.mjs",
     "package:server": "node scripts/package-server.mjs",
     "media:retention": "node --experimental-strip-types scripts/media-retention.mjs",

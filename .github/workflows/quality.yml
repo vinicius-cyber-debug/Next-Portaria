@@ -98,7 +98,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run check
-      - run: node --experimental-strip-types --test tests/postgres.test.mjs tests/postgres-stability.test.mjs tests/postgres-transactions.test.mjs tests/integration-preparation.test.mjs tests/porto-domain.test.mjs tests/porto-postgres.test.mjs
+      - run: node --experimental-strip-types --test tests/postgres.test.mjs tests/postgres-stability.test.mjs tests/postgres-transactions.test.mjs tests/integration-preparation.test.mjs tests/porto-domain.test.mjs tests/porto-postgres.test.mjs tests/porto-finance.test.mjs
       - run: npm run build
       - run: npx playwright install --with-deps chromium
       - name: Verify Porto approval and entry over HTTPS

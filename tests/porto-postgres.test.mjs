@@ -77,7 +77,7 @@ test('Porto PostgreSQL: fundação isolada, permissões, snapshots, concorrênci
    assert.equal((await call('/porto/eventos')).status,403);actor='admin';assert.ok((await call('/porto/eventos')).data.rows.length>0);
    await assert.rejects(db.pool.query("UPDATE porto_tarifas SET diaria_centavos=1"));await assert.rejects(db.pool.query('DELETE FROM porto_eventos'));
    await assert.rejects(db.pool.query('UPDATE porto_permanencias SET saida_em=clock_timestamp(),status=\'encerrada\',saida_operador_id=\'admin\' WHERE id=$1',[stayId]));
-   assert.equal((await command('REGISTRAR_SAIDA',{id:stayId})).data.error.code,'PHASE_NOT_AVAILABLE');
+   assert.equal((await command('REGISTRAR_SAIDA',{id:stayId,veiculoConferido:true,justificativa:'Tentativa sem empresa pagadora e sem quitação'})).data.error.code,'PAYER_REQUIRED');
   });
   await t.test('sessão revogada é revalidada dentro da transação; restore JSON não apaga o Porto',async()=>{
    actor='admin';const requestToRestore=(await call('/backup')).data,snapshot=(await call('/state')).data;
