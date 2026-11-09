@@ -5,7 +5,7 @@ import {createHash} from 'node:crypto';
 import {existsSync} from 'node:fs';
 import {projectRoot} from './postgres-config.mjs';
 if(process.platform!=='win32')throw Error('Este empacotador usa o ZIP nativo do Windows.');
-const ref=process.argv[2];if(!/^v\d+\.\d+\.\d+$/.test(ref??''))throw Error('Informe uma tag de release.');
+const ref=process.argv[2];if(!/^v\d+\.\d+\.\d+(?:-rc\.\d+)?$/.test(ref??''))throw Error('Informe uma tag de release.');
 function git(args){const r=spawnSync('git',args,{cwd:projectRoot,encoding:'utf8',windowsHide:true});if(r.status!==0)throw Error('Git falhou. Confira a tag local.');return r.stdout.trim();}
 const commit=git(['rev-parse',ref+'^{commit}']),version=JSON.parse(git(['show',`${commit}:package.json`])).version;
 if(ref!=='v'+version)throw Error('Versao da tag e do pacote divergem.');

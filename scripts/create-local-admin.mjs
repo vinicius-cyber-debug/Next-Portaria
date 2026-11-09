@@ -8,6 +8,7 @@ import { createInterface } from 'node:readline/promises';
 import { stdin as input, stdout as output } from 'node:process';
 import { setTimeout as sleep } from 'node:timers/promises';
 import {loadApplicationEnvironment} from './postgres-config.mjs';
+import {PASSWORD_MIN_LENGTH,PASSWORD_MAX_LENGTH} from '../lib/password-policy.mjs';
 if(loadApplicationEnvironment()==='postgres'){
   await import('./create-postgres-admin.mjs');process.exit(process.exitCode??0);
 }
@@ -41,7 +42,7 @@ async function secret(prompt){
       if(key==='\r'||key==='\n'){done();return;}
       if(key==='\u0003'){done(Error('Operação cancelada.'));return;}
       if(key==='\u007f'||key==='\b'){if(data.length){data=data.slice(0,-1);output.write('\b \b');}continue;}
-      if(key>=' '&&data.length<128){data+=key;output.write('*');}
+      if(key>=' '&&data.length<PASSWORD_MAX_LENGTH){data+=key;output.write('*');}
     }};
     input.on('data',listener);
   });
@@ -60,9 +61,9 @@ try{
 }finally{rl.close();}
 if(name.length<2||name.length>150||! /^[a-z0-9][a-z0-9._-]{2,39}$/.test(username)||! /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))throw Error('Nome, usuário ou e-mail inválidos. Repita o cadastro.');
 if((await query(`SELECT id FROM operational_users WHERE email=${escapeSql(email)}`)).length)throw Error('Já existe uma conta com esse e-mail. Use outro e-mail para a conta local.');
-const password=await secret('Senha forte (mínimo 12 caracteres): ');
+const password=await secret(`Senha (mínimo ${PASSWORD_MIN_LENGTH} caracteres): `);
 const confirm=await secret('Confirme a senha: ');
-if(password.length<12||password.length>128||password!==confirm)throw Error('A senha não atende ao tamanho mínimo ou a confirmação é diferente.');
+if(password.length<PASSWORD_MIN_LENGTH||password.length>PASSWORD_MAX_LENGTH||password!==confirm)throw Error('A senha não atende ao tamanho mínimo ou a confirmação é diferente.');
 const salt=randomBytes(16).toString('hex'),hash=pbkdf2Sync(password,Buffer.from(salt,'hex'),310000,32,'sha256').toString('hex');
 const id='local_'+randomUUID(),now=new Date().toISOString(),auditId='audit_'+randomUUID();
 const event={id:auditId,at:now,actor:name,actorId:id,role:'admin',action:'LOCAL_ADMIN_BOOTSTRAP',entity:'user',entityId:id,detail:'Criação do primeiro administrador local',changes:[{kind:'user',id,before:null,after:{id,name,email,role:'admin',status:'active'}}]};

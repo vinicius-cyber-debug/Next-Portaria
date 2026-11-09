@@ -5,6 +5,7 @@ import type {PostgresDatabase} from './persistence/postgres.ts';
 import type {FileObjectStore} from './storage/filesystem.ts';
 import type {MediaContext,MediaUser} from './persistence/contracts.ts';
 import {canWithCapabilities} from './access.mjs';
+import {PostgresError} from './persistence/postgres-errors.ts';
 
 export const MEDIA_LIMITS={video:256*1024*1024,image:10*1024*1024,chunk:5*1024*1024,perRecord:20,pendingPerUser:3,total:20*1024*1024*1024};
 const types=new Set(['video/mp4','video/webm','image/png','image/jpeg','image/webp']);
@@ -38,9 +39,7 @@ export class MediaService {
  readonly db:PostgresDatabase;readonly store:FileObjectStore;
  constructor(db:PostgresDatabase,store:FileObjectStore){this.db=db;this.store=store;}
  private async transaction<T>(context:MediaContext,check:(user:MediaUser)=>void,operation:(client:PoolClient,user:MediaUser)=>Promise<T>){
-  const client=await this.db.pool.connect();
-  try{await client.query('BEGIN');await client.query('SELECT id FROM operational_meta WHERE id=1 FOR UPDATE');const user=await context.authorize(this.db.scoped(client));check(user);const value=await operation(client,user);await client.query('COMMIT');return value;}
-  catch(error){await client.query('ROLLBACK');throw error;}finally{client.release();}
+  return this.db.transaction(async(client,scoped)=>{await client.query('SELECT id FROM operational_meta WHERE id=1 FOR UPDATE');const user=await context.authorize(scoped);check(user);return operation(client,user);});
  }
  private async audit(client:PoolClient,user:MediaUser,action:string,id:string,detail:unknown){
   const event={id:'audit_'+randomUUID(),at:new Date().toISOString(),actor:user.name,actorId:user.id,role:user.role,action,entity:'media',entityId:id,detail:JSON.stringify(detail),changes:[]};
@@ -148,6 +147,7 @@ export class MediaService {
    return json({error:{message:'Operação de mídia não encontrada.'}},404);
   }catch(error){
    if(error instanceof MediaError)return json({error:{code:'MEDIA_ERROR',message:error.message}},error.status);
+   if(error instanceof PostgresError)throw error;
    if((error as {code?:string}).code==='BODY_TOO_LARGE')return json({error:{message:'Parte excede o tamanho permitido.'}},413);
    // The outer API owns authentication errors from revalidation.
    const authError=error as {code?:string;status?:number};if(typeof authError.code==='string'&&[401,403].includes(authError.status??0))throw error;

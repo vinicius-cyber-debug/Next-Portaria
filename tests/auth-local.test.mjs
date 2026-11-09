@@ -3,7 +3,12 @@ import assert from 'node:assert/strict';
 import {readFileSync,readdirSync} from 'node:fs';
 import {DatabaseSync} from 'node:sqlite';
 import {handleApi} from '../lib/server.ts';
-import {hashPassword} from '../lib/local-auth.ts';
+import {hashPassword,validPassword} from '../lib/local-auth.ts';
+
+test('senha aceita 8 a 128 caracteres e recusa valores fora desses limites',()=>{
+ assert.equal(validPassword('Porto!82'),'Porto!82');assert.equal(validPassword('a'.repeat(128)).length,128);
+ for(const value of ['1234567','a'.repeat(129),'',null,12345678])assert.throws(()=>validPassword(value),/8 a 128/);
+});
 class D1 {
   constructor(){this.sqlite=new DatabaseSync(':memory:');const dir=new URL('../drizzle/',import.meta.url);for(const file of readdirSync(dir).filter(p=>p.endsWith('.sql')).sort())this.sqlite.exec(readFileSync(new URL(file,dir),'utf8'));}
   prepare(sql){const owner=this;return {sql,params:[],bind(...params){return {...this,params};},async first(){return owner.sqlite.prepare(this.sql).get(...this.params)??null;},async all(){return {results:owner.sqlite.prepare(this.sql).all(...this.params),success:true};},async run(){const result=owner.sqlite.prepare(this.sql).run(...this.params);return {results:[],success:true,meta:{changes:Number(result.changes)}};}};}
@@ -46,17 +51,17 @@ test('conta bloqueia após cinco senhas erradas',async()=>{
 });
 test('administrador cria usuário, redefine senha e invalida sessões anteriores',async()=>{
  const {db,password}=await setup();const admin=await login(db,'admin',password);const adminCookie=cookieOf(admin.cookie);
- const create=await call(db,'/api/users',{action:'create_local',username:'portaria01',name:'Operador Portaria',email:'portaria@example.test',role:'gate',password:'Senha-portaria-123!',idempotencyKey:'create-portal-001'},adminCookie);
- assert.equal(create.status,200);assert.equal(create.data.result.username,'portaria01');assert.ok(!JSON.stringify(create.data).includes('Senha-portaria'));
- const badDuplicate=await call(db,'/api/users',{action:'create_local',username:'portaria01',name:'Duplicado',email:'duplicado@example.test',role:'gate',password:'Senha-portaria-123!',idempotencyKey:'create-portal-002'},adminCookie);assert.equal(badDuplicate.status,409);
- const gate=await login(db,'portaria01','Senha-portaria-123!');assert.equal(gate.status,200);
+ const create=await call(db,'/api/users',{action:'create_local',username:'portaria01',name:'Operador Portaria',email:'portaria@example.test',role:'gate',password:'Porto!82',idempotencyKey:'create-portal-001'},adminCookie);
+ assert.equal(create.status,200);assert.equal(create.data.result.username,'portaria01');assert.ok(!JSON.stringify(create.data).includes('Porto!82'));
+ const badDuplicate=await call(db,'/api/users',{action:'create_local',username:'portaria01',name:'Duplicado',email:'duplicado@example.test',role:'gate',password:'Porto!82',idempotencyKey:'create-portal-002'},adminCookie);assert.equal(badDuplicate.status,409);
+ const gate=await login(db,'portaria01','Porto!82');assert.equal(gate.status,200);
  assert.equal((await call(db,'/api/session',undefined,cookieOf(gate.cookie))).data.user.role,'gate');
  assert.equal((await call(db,'/api/users',undefined,cookieOf(gate.cookie))).status,403);
- const reset=await call(db,'/api/users',{action:'reset_password',id:create.data.result.id,password:'Senha-portaria-NOVA-12!',idempotencyKey:'reset-portal-001'},adminCookie);assert.equal(reset.status,200);
+ const reset=await call(db,'/api/users',{action:'reset_password',id:create.data.result.id,password:'Nova!823',idempotencyKey:'reset-portal-001'},adminCookie);assert.equal(reset.status,200);
  assert.equal((await call(db,'/api/session',undefined,cookieOf(gate.cookie))).status,401);
- assert.equal((await login(db,'portaria01','Senha-portaria-123!')).status,401);
- assert.equal((await login(db,'portaria01','Senha-portaria-NOVA-12!')).status,200);
- assert.ok(!JSON.stringify((await call(db,'/api/state',undefined,adminCookie)).data).includes('Senha-portaria-NOVA'));
+ assert.equal((await login(db,'portaria01','Porto!82')).status,401);
+ assert.equal((await login(db,'portaria01','Nova!823')).status,200);
+ assert.ok(!JSON.stringify((await call(db,'/api/state',undefined,adminCookie)).data).includes('Nova!823'));
 });
 test('conta desativada não entra e sessão previamente emitida é recusada',async()=>{
  const {db,password}=await setup(),admin=await login(db,'admin',password),adminCookie=cookieOf(admin.cookie);

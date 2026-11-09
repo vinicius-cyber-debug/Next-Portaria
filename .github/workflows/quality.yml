@@ -38,12 +38,36 @@ jobs:
         run: npm ci
       - name: Check types
         run: npm run check
+      - name: Lint stability and integration preparation
+        run: npm run lint:stability
+      - name: Lint Porto foundation
+        run: npm run lint:porto
       - name: Run tests
         run: npm test
       - name: Build application
         run: npm run build
       - name: Build demonstration
         run: npm run build:demo
+  ui:
+    name: Responsive UI and accessibility
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npm run lint:ui
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:ui
+      - name: Save visual evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: enterprise-ui-review
+          path: .porto-tooling/ui-review
   postgres:
     name: PostgreSQL API and native build
     runs-on: ubuntu-latest
@@ -74,9 +98,17 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run check
-      - run: node --experimental-strip-types --test tests/postgres.test.mjs
+      - run: node --experimental-strip-types --test tests/postgres.test.mjs tests/postgres-stability.test.mjs tests/postgres-transactions.test.mjs tests/integration-preparation.test.mjs tests/porto-domain.test.mjs tests/porto-postgres.test.mjs tests/porto-finance.test.mjs
       - run: npm run build
       - run: npx playwright install --with-deps chromium
+      - name: Verify Porto approval and entry over HTTPS
+        run: npm run test:porto:browser
+      - name: Save Porto visual evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: porto-foundation-review
+          path: .porto-tooling/porto-review
       - name: Verify private video playback in browser
         run: node --experimental-strip-types --test tests/postgres.test.mjs
         env:

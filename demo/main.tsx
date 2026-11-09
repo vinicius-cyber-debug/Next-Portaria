@@ -4,6 +4,7 @@ import PortApp from '../app/port-app';
 import { setRequestTransport } from '../lib/http-client';
 import { createDemoApi } from './api.mjs';
 import '../app/globals.css';
+import '../app/design-system.css';
 import './styles.css';
 
 const demo=createDemoApi({origin:window.location.origin});

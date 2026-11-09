@@ -55,7 +55,7 @@ A remoção afeta o atalho; `npm run stop` encerra a execução atual.
 
 ## Contas e autenticação
 
-Após entrar como administrador, use **Administração → Usuários** para cadastrar cada operador com usuário, senha inicial e perfil individual. A senha deve ter de 12 a 128 caracteres. Contas novas e senhas redefinidas exigem uma troca pessoal antes de liberar a operação.
+Após entrar como administrador, use **Administração → Usuários** para cadastrar cada operador com usuário, senha inicial e perfil individual. A senha deve ter de 8 a 128 caracteres. Contas novas e senhas redefinidas exigem uma troca pessoal antes de liberar a operação.
 
 A página **Minha senha** exige a senha atual e uma nova senha diferente. A troca encerra as sessões anteriores e mantém uma nova sessão para o acesso atual. Um administrador pode redefinir senhas esquecidas pela lista de usuários; não há recuperação automática por e-mail. Contas desativadas perdem o acesso.
 

@@ -5,11 +5,11 @@ import { handleContinuity, refreshNotifications } from './continuity.ts';
 import { AUTH_COOKIE, PASSWORD_ITERATIONS, SESSION_HOURS, validUsername, validPassword, hashPassword, verifyPassword, sessionToken, tokenHash, cookieToken, sessionCookie } from './local-auth.ts';
 import { assertVisitEligibility } from './physical-access.mjs';
 import { readOperationalSnapshot, operationalVisible, stateDelta, syncState, pagedRecords } from './state-sync.ts';
-import type {Database as D1Database,PreparedStatement as D1PreparedStatement,QueryResult as D1Result,ObjectStore as R2Bucket,MediaHandler} from './persistence/contracts.ts';
+import type {Database as D1Database,PreparedStatement as D1PreparedStatement,QueryResult as D1Result,ObjectStore as R2Bucket,MediaHandler,PortoHandler} from './persistence/contracts.ts';
 import {APP_VERSION} from './version.mjs';
 
 type User = {id:string;email:string;name:string;role:string;status:string;mustChangePassword?:boolean;createdAt?:string;updatedAt?:string;capabilities?:Record<string,boolean>;overrides?:Record<string,boolean>};
-type Resources = {bucket?:R2Bucket;media?:MediaHandler;jobToken?:string;allowHttpLan?:boolean};
+type Resources = {bucket?:R2Bucket;media?:MediaHandler;porto?:PortoHandler;jobToken?:string;allowHttpLan?:boolean};
 type Audit = Record<string, unknown> & {id:string;at:string};
 type State = {version:number;settings:Record<string,any>;visitors:Record<string,any>[];audit:Audit[];berths:string[];[collection:string]:any};
 type Snapshot = {state:State;revision:number};
@@ -27,7 +27,7 @@ function reject(code:string,message:string,status=400):never {throw new ApiError
 function response(value:unknown,status=200,headers:Record<string,string>={}) {return new Response(JSON.stringify(value),{status,headers:{...JSON_HEADERS,...headers}});}
 function field(value:unknown,label:string,max=200) {if(typeof value!=='string'||!value.trim()||value.trim().length>max) reject('VALIDATION',`${label} inválido.`);return value.trim();}
 function normalizeEmail(value:unknown) {const email=field(value,'E-mail',254).toLowerCase();if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) reject('VALIDATION','Informe um e-mail válido.');return email;}
-function roleOf(value:unknown) {const role=canonicalRole(value);if(role==='finance')moduleRemoved();if(!ACTIVE_ROLES.includes(role)) reject('VALIDATION','Perfil inválido.');return role;}
+function roleOf(value:unknown,portoEnabled=false) {const role=canonicalRole(value);if(role==='finance'){if(portoEnabled)return role;moduleRemoved();}if(!ACTIVE_ROLES.includes(role)) reject('VALIDATION','Perfil inválido.');return role;}
 function requireAdmin(user:User) {if(user.status!=='active'||user.role!=='admin') reject('FORBIDDEN','Somente administradores podem executar esta ação.',403);}
 function requireRead(user:User) {if(user.status!=='active'||!can(user.role,'READ')) reject('PENDING_ACCESS',user.status==='disabled'?'Seu acesso foi desativado.':'Seu acesso aguarda aprovação do administrador.',403);}
 function requireCapability(user:User,key:string) {if(!user.capabilities?.[key])reject('FORBIDDEN','Seu acesso não permite esta ação. Consulte o administrador.',403);}
@@ -314,10 +314,15 @@ export async function handleApi(request:Request,db:D1Database,resources:Resource
     if(path==='/api/auth/login')return await logIn(request,db);
     if(path==='/api/auth/logout')return await logOut(request,db);
     const user=await withCapabilities(db,await identify(request,db));
-    if(path==='/api/session'&&request.method==='GET') return response({user,environment:environment(request,resources)});
+    if(path==='/api/session'&&request.method==='GET') return response({user,environment:environment(request,resources),features:{porto:resources.porto?.enabled===true}});
     requireRead(user);
     if(path==='/api/auth/change-password')return await changeOwnPassword(request,db,user);
     if(user.mustChangePassword)reject('PASSWORD_CHANGE_REQUIRED','Altere sua senha inicial antes de acessar a operação.',403);
+    if(path.startsWith('/api/porto/')){
+      if(!resources.porto)return response({error:{code:'PORTO_UNAVAILABLE',message:'Gestão do Porto exige a instalação PostgreSQL nativa.'}},503);
+      const body=request.method==='POST'?await readBody(request):undefined;
+      return await resources.porto.handle(request,{user,authorize:async(connection=db)=>{const fresh=await withCapabilities(connection,await identify(request,connection));requireRead(fresh);if(fresh.mustChangePassword)reject('PASSWORD_CHANGE_REQUIRED','Altere sua senha inicial.',403);return fresh;}},body);
+    }
     if(path.startsWith('/api/media/')){
       if(!resources.media)return response({error:{code:'MEDIA_UNAVAILABLE',message:'Fotos e vídeos com retomada exigem a instalação PostgreSQL.'}},503);
       return await resources.media.handle(request,{user,authorize:async(connection=db)=>{const fresh=await withCapabilities(connection,await identify(request,connection));requireRead(fresh);if(fresh.mustChangePassword)reject('PASSWORD_CHANGE_REQUIRED','Altere sua senha inicial.',403);return fresh;}});
@@ -442,7 +447,7 @@ export async function handleApi(request:Request,db:D1Database,resources:Resource
       const current=await readSnapshot(db);const now=new Date().toISOString();let result:unknown;const mutations:D1PreparedStatement[]=[];let event:Audit;
       if(body.action==='create_local') {
         const username=validUsername(body.username),password=validPassword(body.password);
-        const email=normalizeEmail(body.email),name=field(body.name,'Nome',150),role=roleOf(body.role);
+        const email=normalizeEmail(body.email),name=field(body.name,'Nome',150),role=roleOf(body.role,resources.porto?.enabled===true);
         if(await statement(db,'SELECT id FROM operational_users WHERE email=?',email).first() ||
            await statement(db,'SELECT user_id FROM operational_credentials WHERE username=?',username).first())reject('DUPLICATE','Este usuário ou e-mail já está cadastrado.',409);
         const newId=uuid('local');const credential=await hashPassword(password);
@@ -461,7 +466,7 @@ export async function handleApi(request:Request,db:D1Database,resources:Resource
         mutations.push(statement(db,'DELETE FROM operational_sessions WHERE user_id=?',targetId));
         event=makeAudit(user,'USER_PASSWORD_RESET','user',targetId,{id:targetId},{id:targetId,credentialsRotated:true});
       } else if(body.action==='invite') {
-        const email=normalizeEmail(body.email),name=field(body.name??email,'Nome',150),role=roleOf(body.role);
+        const email=normalizeEmail(body.email),name=field(body.name??email,'Nome',150),role=roleOf(body.role,resources.porto?.enabled===true);
         const existingUser=await statement(db,'SELECT id FROM operational_users WHERE email = ?',email).first();if(existingUser) reject('DUPLICATE','Este usuário já está cadastrado. Altere seu perfil na lista de usuários.',409);
         const old=await statement(db,'SELECT id,email,name,role,status FROM operational_invites WHERE email = ?',email).first<{id:string;status:string}>();if(old?.status==='pending') reject('DUPLICATE','Já existe uma liberação pendente para este e-mail.',409);
         const invite={id:old?.id??uuid('invite'),email,name,role,status:'pending',createdAt:now,createdBy:user.id};result=invite;
@@ -471,7 +476,7 @@ export async function handleApi(request:Request,db:D1Database,resources:Resource
       } else if(body.action==='update') {
         const id=field(body.id,'Usuário',200),status=field(body.status,'Situação',20);if(!['active','pending','disabled'].includes(status)) reject('VALIDATION','Situação de usuário inválida.');
         const old=await statement(db,'SELECT id,email,name,role,status FROM operational_users WHERE id = ?',id).first<User>();if(!old) reject('NOT_FOUND','Usuário não encontrado.',404);
-        const role=old.role==='finance'&&body.role==='finance'?old.role:roleOf(body.role);
+        const role=old.role==='finance'&&body.role==='finance'?old.role:roleOf(body.role,resources.porto?.enabled===true);
         const updated={...old,role,status,updatedAt:now};result=updated;mutations.push(statement(db,'UPDATE operational_users SET role=?,status=?,updated_at=? WHERE id=?',role,status,now,id));if(status==='disabled')mutations.push(statement(db,'DELETE FROM operational_sessions WHERE user_id=?',id));event=makeAudit(user,'USER_UPDATE','user',id,old,updated);
       } else if(body.action==='revoke_invite') {
         const id=field(body.id,'Liberação',200),old=await statement(db,'SELECT id,email,name,role,status FROM operational_invites WHERE id = ?',id).first<{id:string;status:string}>();if(!old) reject('NOT_FOUND','Liberação não encontrada.',404);if(old.status!=='pending') reject('INVALID_TRANSITION','Somente uma liberação pendente pode ser revogada.',409);
@@ -504,7 +509,8 @@ export async function handleApi(request:Request,db:D1Database,resources:Resource
       const summarize=(state:State)=>Object.fromEntries(COLLECTIONS.map(collection=>[collection,(state as unknown as Record<string,unknown[]>)[collection].length]));
       const event=makeAudit(user,'BACKUP_RESTORE','backup',uuid('restore'),{revision,counts:summarize(current.state)},{sourceRevision:backup.revision,exportedAt:backup.exportedAt,sha256:await sha(backup.state),counts:summarize(restored)},reason);
       restored.audit=[event,...current.state.audit];const result={restored:true,sourceRevision:backup.revision,counts:summarize(restored)};
-      const committed=await commit(db,user,revision,[...recordStatements(db,current.state,restored),statement(db,'DELETE FROM operational_passes'),appendAudit(db,event)],id,hash,result);if(committed.saved) return replay(db,committed.saved,user);
+      const portoGuard=await resources.porto?.restoreGuard()??[];
+      const committed=await commit(db,user,revision,[...portoGuard,...recordStatements(db,current.state,restored),statement(db,'DELETE FROM operational_passes'),appendAudit(db,event)],id,hash,result);if(committed.saved) return replay(db,committed.saved,user);
       return response({...operationalVisible({state:restored,revision:revision+1},user),result});
     }
     if(['/api/auth/login','/api/auth/logout','/api/session','/api/state','/api/sync','/api/records','/api/approvers','/api/monthly-preview','/api/commands','/api/users','/api/backup','/api/audit-export','/api/restore'].includes(path)) reject('METHOD_NOT_ALLOWED','Método não permitido.',405);
@@ -512,6 +518,7 @@ export async function handleApi(request:Request,db:D1Database,resources:Resource
   } catch(error) {
     if(error instanceof ApiError) return response({error:{code:error.code,message:error.message}},error.status);
     const domainError=error as Error & {code?:string};
+    if(domainError.message==='PORTO_FULL_RESTORE_REQUIRED')return response({error:{code:'PORTO_FULL_RESTORE_REQUIRED',message:'Há dados da Gestão do Porto. Utilize a recuperação completa PostgreSQL; o JSON operacional não contém esse módulo.'}},409);
     // PostgreSQL can detect a concurrent revision during idempotent initialization,
     // before the command reaches commit(). Keep that conflict actionable as well.
     if(domainError.message==='REVISION_CONFLICT')return response({error:{code:'REVISION_CONFLICT',message:'Os dados foram atualizados por outro usuário. Atualize e tente novamente.'}},409);

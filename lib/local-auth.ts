@@ -1,4 +1,5 @@
 /** Autenticação de usuários locais. Nunca confia em cabeçalhos de identidade do navegador. */
+import {PASSWORD_MIN_LENGTH,PASSWORD_MAX_LENGTH} from './password-policy.mjs';
 export const AUTH_COOKIE = 'porto_session';
 export const PASSWORD_ITERATIONS = 310_000;
 export const SESSION_HOURS = 8;
@@ -10,7 +11,7 @@ export function validUsername(value:unknown):string {
   return value.trim().toLowerCase();
 }
 export function validPassword(value:unknown):string {
-  if(typeof value!=='string'||value.length<12||value.length>128)throw Error('A senha deve ter de 12 a 128 caracteres.');
+  if(typeof value!=='string'||value.length<PASSWORD_MIN_LENGTH||value.length>PASSWORD_MAX_LENGTH)throw Error(`A senha deve ter de ${PASSWORD_MIN_LENGTH} a ${PASSWORD_MAX_LENGTH} caracteres.`);
   return value;
 }
 export async function hashPassword(password:string,salt?:string) {
@@ -22,7 +23,7 @@ export async function hashPassword(password:string,salt?:string) {
   return {salt:randomSalt,hash:hex(new Uint8Array(bits)),iterations:PASSWORD_ITERATIONS};
 }
 export async function verifyPassword(password:string,salt:string,storedHash:string) {
-  if(typeof password!=='string'||password.length>128||! /^[a-f0-9]{64}$/.test(storedHash))return false;
+  if(typeof password!=='string'||password.length>PASSWORD_MAX_LENGTH||! /^[a-f0-9]{64}$/.test(storedHash))return false;
   const result=await hashPassword(password,salt).catch(()=>null);
   if(!result)return false;
   const expected=fromHex(storedHash),actual=fromHex(result.hash);let diff=0;
