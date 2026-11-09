@@ -1,6 +1,6 @@
 # Integrador de controle de acesso — arquitetura proposta
 
-Estado em 6/11/2026: preparação, sem conexão com equipamentos. O responsável vai conferir modelos e firmwares; até lá, a integração permanece em simulação. Não há adaptador HTTP Control iD registrado, endpoint de callbacks exposto, cadastro remoto, biometria ou comando de liberação.
+Atualização de 9/11/2026: o leitor da central **iDSecure** consulta cadastros e fotos em modo somente leitura. Veja [operação e configuração](ACESSOS-RECORRENTES-IDSECURE.md). Os contratos abaixo continuam sendo a preparação para eventos de passagem e equipamentos físicos, ainda dependentes de modelos/firmwares. Não há callbacks expostos, escrita remota, biometria ou comando de liberação.
 
 ## Fronteira já preparada
 

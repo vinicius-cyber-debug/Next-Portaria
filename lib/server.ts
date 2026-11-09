@@ -6,6 +6,7 @@ import { AUTH_COOKIE, PASSWORD_ITERATIONS, SESSION_HOURS, validUsername, validPa
 import { assertVisitEligibility } from './physical-access.mjs';
 import { readOperationalSnapshot, operationalVisible, stateDelta, syncState, pagedRecords } from './state-sync.ts';
 import type {Database as D1Database,PreparedStatement as D1PreparedStatement,QueryResult as D1Result,ObjectStore as R2Bucket,MediaHandler,PortoHandler} from './persistence/contracts.ts';
+import {validateDirectoryPerson} from './person-directory.mjs';
 import {APP_VERSION} from './version.mjs';
 
 type User = {id:string;email:string;name:string;role:string;status:string;mustChangePassword?:boolean;createdAt?:string;updatedAt?:string;capabilities?:Record<string,boolean>;overrides?:Record<string,boolean>};
@@ -261,6 +262,12 @@ function validFileType(type:string,bytes:Uint8Array) {
   if(type==='application/pdf')return new TextDecoder().decode(bytes.slice(0,5))==='%PDF-';return false;
 }
 async function assertRestoreAttachments(db:D1Database,bucket:R2Bucket|undefined,state:State) {
+  for(const person of state.people??[]){
+    const photo=validateDirectoryPerson(person).directoryPhoto;if(!photo)continue;
+    const object=await bucket?.get(photo.objectKey);if(!object||object.size!==photo.size)reject('ATTACHMENTS_UNAVAILABLE','Foto de pessoa ausente. Recupere o backup completo.',422);
+    const bytes=await new Response(object.body).arrayBuffer(),hash=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes)),b=>b.toString(16).padStart(2,'0')).join('');
+    if(hash!==photo.sha256)reject('ATTACHMENTS_UNAVAILABLE','Integridade da foto não confere.',422);
+  }
   const ids=[...new Set<string>((state.incidents??[]).flatMap((incident:{attachmentIds?:string[]})=>incident.attachmentIds??[]))];
   if(ids.length&&!bucket)reject('ATTACHMENTS_UNAVAILABLE','O backup referencia anexos, mas o armazenamento privado está indisponível.',422);
   for(let offset=0;offset<ids.length;offset+=20)await Promise.all(ids.slice(offset,offset+20).map(async id=>{
@@ -326,6 +333,15 @@ export async function handleApi(request:Request,db:D1Database,resources:Resource
     if(path.startsWith('/api/media/')){
       if(!resources.media)return response({error:{code:'MEDIA_UNAVAILABLE',message:'Fotos e vídeos com retomada exigem a instalação PostgreSQL.'}},503);
       return await resources.media.handle(request,{user,authorize:async(connection=db)=>{const fresh=await withCapabilities(connection,await identify(request,connection));requireRead(fresh);if(fresh.mustChangePassword)reject('PASSWORD_CHANGE_REQUIRED','Altere sua senha inicial.',403);return fresh;}});
+    }
+    if(new RegExp('^/api/people/[^/]+/photo$').test(path)){
+      if(request.method!=='GET')reject('METHOD_NOT_ALLOWED','Método não permitido.',405);
+      requireCapability(user,'documentView');
+      const person=await statement(db,"SELECT body FROM operational_records WHERE collection='people' AND id=?",path.split('/')[3]).first<{body:string}>();
+      const photo=person?validateDirectoryPerson(JSON.parse(person.body)).directoryPhoto:null;
+      if(!photo||!resources.bucket)reject('NOT_FOUND','Foto não disponível.',404);
+      const object=await resources.bucket.get(photo.objectKey);if(!object||object.size!==photo.size)reject('NOT_FOUND','Foto não disponível.',404);
+      return new Response(object.body,{headers:{...JSON_HEADERS,'Content-Type':photo.contentType,'Content-Length':String(object.size),'Content-Security-Policy':"default-src 'none'"}});
     }
     if(path==='/api/state'&&request.method==='GET') return response(operationalVisible(await readOperationalSnapshot(db),user));
     if(path==='/api/sync'&&request.method==='GET') {

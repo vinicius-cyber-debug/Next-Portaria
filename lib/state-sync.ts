@@ -6,7 +6,7 @@ import type {Database as D1Database,QueryResult as D1Result} from './persistence
 type Row=Record<string,any>;
 export const HISTORY_DAYS=30;
 const WINDOW_RULES:Record<string,{field:string;active:string[]}>= {
-  visitors:{field:'requestedAt',active:['pending','authorized','inside']},
+  visitors:{field:'requestedAt',active:['pending','authorized','inside','unconfirmed','temporarily_out']},
   vehicles:{field:'entryAt',active:['inside']},
   incidents:{field:'createdAt',active:['open','in_progress']},
   handovers:{field:'createdAt',active:[]},
