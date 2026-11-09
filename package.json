@@ -42,7 +42,8 @@
     "build:demo": "vite build --config demo/vite.config.ts",
     "integration:idsecure": "node --experimental-strip-types scripts/import-idsecure.mjs",
     "test:access": "node --experimental-strip-types --test tests/access-modes.test.mjs tests/idsecure.test.mjs",
-    "test:access:browser": "node --experimental-strip-types tests/access-browser.mjs"
+    "test:access:browser": "node --experimental-strip-types tests/access-browser.mjs",
+    "test:monitor:browser": "node --experimental-strip-types tests/turnstile-browser.mjs"
   },
   "dependencies": {
     "drizzle-orm": "0.45.2",

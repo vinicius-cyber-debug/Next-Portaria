@@ -44,6 +44,7 @@ export function createDemoApi({now=()=>new Date().toISOString(),origin=ORIGIN}={
       const rawBody=init.body??(input instanceof Request&&method!=='GET'?await input.text():undefined);
       const body=typeof rawBody==='string'&&rawBody?JSON.parse(rawBody):{};
       const path=url.pathname.slice(4),query=url.searchParams;
+      if(method==='GET'&&path==='/integrations/idsecure/monitor')return json({source:'iDSecure · demonstração',status:'connected',lastSuccessAt:now(),pollIntervalMs:3000,events:[],passageEvidence:'not_validated'});
       if(method==='GET'&&path==='/session')return json({user:clone(actor),capabilities:actor.capabilities,environment:'demo',demo:true});
       if(method==='GET'&&path==='/state')return json(snapshot());
       if(method==='GET'&&path==='/sync')return json(Number(query.get('since'))===revision?{revision,user:clone(actor),capabilities:actor.capabilities,unchanged:true}:{...snapshot(),reset:true});

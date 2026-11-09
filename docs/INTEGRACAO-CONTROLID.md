@@ -1,6 +1,6 @@
 # Integrador de controle de acesso — arquitetura proposta
 
-Atualização de 9/11/2026: o leitor da central **iDSecure** consulta cadastros e fotos em modo somente leitura. Veja [operação e configuração](ACESSOS-RECORRENTES-IDSECURE.md). Os contratos abaixo continuam sendo a preparação para eventos de passagem e equipamentos físicos, ainda dependentes de modelos/firmwares. Não há callbacks expostos, escrita remota, biometria ou comando de liberação.
+Atualização de 9/11/2026: o leitor da central **iDSecure** consulta cadastros e fotos em modo somente leitura. A Visão geral também exibe [eventos recentes do monitor](MONITOR-CATRACAS.md), com atualização automática e sem conciliação de passagem física. Veja [operação e configuração](ACESSOS-RECORRENTES-IDSECURE.md). Os contratos abaixo continuam sendo a preparação para eventos de passagem e equipamentos físicos, ainda dependentes de modelos/firmwares. Não há callbacks expostos, escrita remota, biometria ou comando de liberação.
 
 ## Fronteira já preparada
 

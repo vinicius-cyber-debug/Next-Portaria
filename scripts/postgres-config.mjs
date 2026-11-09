@@ -8,5 +8,8 @@ export function loadApplicationEnvironment(){
   if(process.env.PORTO_DB_PROVIDER==='sqlite')return 'sqlite';
   if(process.env.PORTO_DB_PROVIDER==='postgres'&&process.env.PORTO_PG_CONFIG&&process.env.PORTO_MEDIA_ROOT)return 'postgres';
   if(!existsSync(configPath)){if(process.env.PORTO_DB_PROVIDER==='postgres')throw Error('Configuracao PostgreSQL ausente.');return 'sqlite';}
-  const config=postgresConfig();process.env.PORTO_DB_PROVIDER='postgres';process.env.PORTO_PG_CONFIG??=JSON.stringify(config.database);process.env.PORTO_MEDIA_ROOT??=config.mediaRoot;return 'postgres';
+  const config=postgresConfig();process.env.PORTO_DB_PROVIDER='postgres';process.env.PORTO_PG_CONFIG??=JSON.stringify(config.database);process.env.PORTO_MEDIA_ROOT??=config.mediaRoot;
+  // Only the installed local profile opts into its own integration settings. Explicit
+  // database environments (including isolated QA) must opt in separately.
+  process.env.PORTO_IDSECURE_CONFIG??=resolve(projectRoot,'.porto-runtime/idsecure.json');return 'postgres';
 }
