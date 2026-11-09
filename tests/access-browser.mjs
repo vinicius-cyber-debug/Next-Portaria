@@ -1,0 +1,51 @@
+import {chromium,expect} from '@playwright/test';
+import {createRequire} from 'node:module';
+import {randomBytes,createHash} from 'node:crypto';
+import {mkdir,mkdtemp,writeFile,rm} from 'node:fs/promises';
+import {tmpdir} from 'node:os';
+import {resolve,join,sep} from 'node:path';
+import {spawn,spawnSync} from 'node:child_process';
+import {createServer} from 'node:net';
+import {withPostgresFixture} from './support/postgres-fixture.mjs';
+import {hashPassword} from '../lib/local-auth.ts';
+import {handleApi,readSnapshot} from '../lib/server.ts';
+import {createInitialState,execute,validateState} from '../lib/domain.mjs';
+import {mergeDirectory} from '../lib/integrations/directory-import.ts';
+import {FileObjectStore} from '../lib/storage/filesystem.ts';
+const output=resolve('.porto-tooling/access-review');await mkdir(output,{recursive:true});
+const temporary=await mkdtemp(join(tmpdir(),'portaria-access-qa-'));let browser,child,logs='';const errors=[],violations=[],screenshots=[];
+async function port(){const socket=createServer();await new Promise(done=>socket.listen(0,'127.0.0.1',done));const value=socket.address().port;await new Promise(done=>socket.close(done));return value;}
+try{
+ await withPostgresFixture(async({owner,db,database,role,password:appPassword,adminConfig})=>{
+  try{
+   await handleApi(new Request('http://127.0.0.1/api/session'),db);
+   const password=randomBytes(24).toString('hex'),credential=await hashPassword(password),now=new Date().toISOString();
+   for(const actor of ['admin','gate']){await owner.query("INSERT INTO operational_users(id,email,name,role,status,created_at,updated_at) VALUES($1,$2,$3,$1,'active',$4,$4)",[actor,actor+'@example.test',actor+' QA',now]);await owner.query('INSERT INTO operational_credentials(user_id,username,password_hash,password_salt,password_iterations,password_changed_at,must_change_password) VALUES($1,$2,$3,$4,$5,$6,0)',[actor,'access.'+actor,credential.hash,credential.salt,credential.iterations,now]);}
+   const png=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aX1UAAAAASUVORK5CYII=','base64'),sha256=createHash('sha256').update(png).digest('hex'),photo={objectKey:'directory-photos/fixture/'+sha256,size:png.length,sha256,contentType:'image/png'};
+   let state=execute(createInitialState(),{type:'ACCESS_AREA_SAVE',payload:{name:'Recepção QA'},at:now},{id:'admin',name:'admin QA',role:'admin'}).state;
+   state=mergeDirectory(state,'fixture',[{recordId:'1',nativeId:'1',name:'Funcionário fictício QA',registration:'F001',documentLast4:'1234',inactive:false,blocked:false,visitor:false,photo},{recordId:'2',nativeId:'2',name:'Pessoa barco fictícia QA',registration:'B001',documentLast4:'5678',inactive:false,blocked:false,visitor:false,photo}],now).state;
+   validateState(state);
+   for(const collection of ['people','accessAreas'])for(const record of state[collection])await owner.query('INSERT INTO operational_records(collection,id,body) VALUES($1,$2,$3)',[collection,record.id,JSON.stringify(record)]);
+   const media=join(temporary,'media');await mkdir(media);await new FileObjectStore(media).put(photo.objectKey,png);
+   const uiPort=await port(),origin='http://127.0.0.1:'+uiPort;
+   child=spawn(process.execPath,['--experimental-strip-types','scripts/run-framework.mjs','start','--hostname','127.0.0.1','--port',String(uiPort)],{windowsHide:true,detached:process.platform!=='win32',env:{...process.env,PORTO_DB_PROVIDER:'postgres',PORTO_PG_CONFIG:JSON.stringify({...adminConfig,database,user:role,password:appPassword}),PORTO_MEDIA_ROOT:media,PORTO_NATIVE_PROCESS_FILE:join(temporary,'process.json')},stdio:['ignore','pipe','pipe']});for(const stream of [child.stdout,child.stderr])stream.on('data',value=>{logs=(logs+value).slice(-6000)});
+   const deadline=Date.now()+60000;while(!await fetch(origin).then(r=>r.ok).catch(()=>false)){if(Date.now()>deadline||child.exitCode!==null)throw Error('QA não iniciou. '+logs);await new Promise(done=>setTimeout(done,250));}
+   browser=await chromium.launch({headless:true,...(process.platform==='win32'?{channel:'msedge'}:{})});const axe=createRequire(import.meta.url).resolve('axe-core/axe.min.js');
+   async function navigate(page){if(page.viewportSize().width<=900)await page.getByRole('button',{name:'Abrir menu',exact:true}).click();await page.getByRole('navigation',{name:'Navegação principal'}).getByRole('button',{name:'Central de Acesso',exact:true}).click();await page.getByRole('button',{name:'Pessoas e autorizações',exact:true}).click();}
+   async function session(actor,width=1366){const context=await browser.newContext({viewport:{width,height:844},reducedMotion:'reduce'});const response=await context.request.post(origin+'/api/auth/login',{headers:{origin},data:{username:'access.'+actor,password}});expect(response.status()).toBe(200);const page=await context.newPage();page.setDefaultTimeout(30000);page.on('pageerror',e=>errors.push(e.message));await page.goto(origin);await navigate(page);return page;}
+   async function capture(page,label){expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),label+' overflow').toBe(true);await page.addScriptTag({path:axe});const report=await page.evaluate(async()=>window.axe.run(document.querySelector('[role="dialog"]')||document,{runOnly:{type:'tag',values:['wcag2a','wcag2aa','wcag21aa','wcag22aa']}}));violations.push(...report.violations.map(v=>({label,id:v.id,summary:v.nodes.map(n=>n.failureSummary)})));await page.screenshot({path:join(output,label+'.png'),animations:'disabled'});screenshots.push(label);}
+   const admin=await session('admin');await capture(admin,'cadastros-importados');
+   async function authorize(name,boat=false){const row=admin.locator('.regular-person').filter({hasText:name});await row.getByRole('button',{name:'Revisar',exact:true}).click();let dialog=admin.getByRole('dialog');await dialog.getByRole('textbox',{name:'Empresa',exact:true}).fill('Empresa fictícia QA');await dialog.getByRole('combobox',{name:'Segurança',exact:true}).selectOption('cleared');await dialog.getByRole('textbox',{name:'Justificativa da revisão / observações',exact:true}).fill('Revisão de homologação com dados fictícios.');await dialog.getByRole('button',{name:'Confirmar',exact:true}).click();await expect(dialog).toHaveCount(0);await row.getByRole('button',{name:'Autorizar',exact:true}).click();dialog=admin.getByRole('dialog');await dialog.getByRole('checkbox',{name:'Recepção QA',exact:true}).check();if(boat)await dialog.getByRole('combobox',{name:'Controle de saída',exact:true}).selectOption('unobserved');await dialog.getByRole('textbox',{name:'Justificativa',exact:true}).fill('Autorização de teste com responsável identificado.');await capture(admin,boat?'autorizar-barco':'autorizar-funcionario');await dialog.getByRole('button',{name:'Confirmar',exact:true}).click();await expect(dialog).toHaveCount(0);}
+   await authorize('Funcionário fictício QA');await authorize('Pessoa barco fictícia QA',true);
+   const gate=await session('gate',390);expect(await gate.getByRole('button',{name:'Autorizar',exact:true}).count()).toBe(0);const row=gate.locator('.regular-person').filter({hasText:'Funcionário fictício QA'});await expect.poll(()=>row.locator('img').evaluate(img=>img.naturalWidth)).toBeGreaterThan(0);
+   async function confirmEntry(target,reconciliation){await target.getByRole('button',{name:'Entrada',exact:true}).click();const dialog=gate.getByRole('dialog');if(reconciliation)await dialog.getByRole('textbox',{name:'Justificativa da reconciliação',exact:true}).fill(reconciliation);await dialog.getByRole('checkbox').check();await dialog.getByRole('button',{name:'Confirmar',exact:true}).click();await expect(dialog).toHaveCount(0);}
+   await confirmEntry(row);await row.getByRole('button',{name:'Saída produtiva',exact:true}).click();let dialog=gate.getByRole('dialog');await dialog.getByRole('textbox',{name:'Período produtivo',exact:true}).fill('Produção da manhã QA');await dialog.getByRole('textbox',{name:'Justificativa',exact:true}).fill('Intervalo durante a produção.');await capture(gate,'saida-produtiva-390');await dialog.getByRole('button',{name:'Confirmar',exact:true}).click();await expect(dialog).toHaveCount(0);await expect(row).toContainText('aguarda retorno');await row.getByRole('button',{name:'Retorno',exact:true}).click();dialog=gate.getByRole('dialog');await dialog.getByRole('checkbox').check();await dialog.getByRole('button',{name:'Confirmar',exact:true}).click();await expect(dialog).toHaveCount(0);await expect(row).toContainText('Presença confirmada');
+   const boat=gate.locator('.regular-person').filter({hasText:'Pessoa barco fictícia QA'});await confirmEntry(boat);await expect(boat).toContainText('Saída não confirmada');await confirmEntry(boat,'Nova entrada observada; saída anterior pelo barco sem registro.');
+   for(const width of [1366,768,390,360]){await gate.setViewportSize({width,height:844});await capture(gate,'pessoas-'+width);}
+   const result=await gate.request.get(origin+'/api/state'),snapshot=await result.json();validateState((await readSnapshot(db)).state);const visits=snapshot.state.visitors;expect(visits.filter(v=>v.status==='inside')).toHaveLength(1);expect(visits.filter(v=>v.status==='unconfirmed')).toHaveLength(1);expect(visits.filter(v=>v.status==='unconfirmed_closed')).toHaveLength(1);expect(visits.find(v=>v.status==='unconfirmed_closed').leftAt).toBe(null);expect(visits.find(v=>v.status==='inside').outings[0].returnedAt).toBeTruthy();
+   expect(errors).toEqual([]);expect(violations).toEqual([]);
+  }finally{if(browser){await browser.close();browser=null;}if(child&&child.exitCode===null){if(process.platform==='win32')spawnSync('taskkill.exe',['/PID',String(child.pid),'/T','/F'],{windowsHide:true,stdio:'ignore'});else process.kill(-child.pid,'SIGTERM');await new Promise(done=>child.once('exit',done));}}
+ });
+ console.log(JSON.stringify({screenshots:screenshots.length,errors,violations}));
+}catch(error){console.error(logs);throw error;}
+finally{await writeFile(join(output,'relatorio.json'),JSON.stringify({screenshots,errors,violations},null,2));if(!resolve(temporary).startsWith(resolve(tmpdir())+sep))throw Error('Pasta QA inválida.');await rm(temporary,{recursive:true,force:true});}
