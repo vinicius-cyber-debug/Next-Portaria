@@ -4,7 +4,7 @@ import {Activity,Clock3,RefreshCw,Users,Wifi,WifiOff} from 'lucide-react';
 import {request} from '../lib/http-client';
 import {Button} from './ui';
 type Event={id:string;device:string;area:string;name:string;occurredAt:string;eventName:string;kind:string;personId:string|null;photoUrl:string|null};
-type Snapshot={source:string;status:string;lastSuccessAt:string|null;events:Event[]};
+type Snapshot={source:string;mode?:'simulation';status:string;lastSuccessAt:string|null;events:Event[]};
 const statusNames:Record<string,string>={connected:'iDSecure conectado',offline:'Conexão indisponível',authentication:'Credencial da integração recusada',invalid:'Resposta da central inválida',unconfigured:'Monitor não configurado'};
 const date=(value:string,tz:string)=>new Intl.DateTimeFormat('pt-BR',{timeZone:tz,dateStyle:'short',timeStyle:'medium'}).format(new Date(value));
 function Photo({event,large=false}:{event:Event;large?:boolean}){
@@ -39,7 +39,7 @@ export function TurnstileMonitor({enabled,tz}:{enabled:boolean;tz:string}){
  if(!enabled)return null;
  const connected=data?.status==='connected'&&!error,latest=data?.events[0],events=expanded?data?.events:data?.events.slice(0,4);
  return <section className={'card turnstile-monitor '+(expanded?'expanded':'')} aria-labelledby="turnstile-monitor-title">
-  <div className="card-header"><div><h2 className="card-title" id="turnstile-monitor-title"><Activity size={19}/>Movimentação das catracas</h2><p className="card-subtitle">Eventos informados pelo iDSecure · atualização automática a cada 3 segundos</p></div><span className={'turnstile-connection '+(connected?'connected':'unavailable')} role="status">{connected?<Wifi size={15}/>:<WifiOff size={15}/>} {error?'Consulta indisponível':data?statusNames[data.status]||'Consulta indisponível':'Consultando central…'}</span></div>
+  <div className="card-header"><div><h2 className="card-title" id="turnstile-monitor-title"><Activity size={19}/>Movimentação das catracas</h2><p className="card-subtitle">{data?.mode==='simulation'?'Eventos fictícios para apresentação':'Eventos informados pelo iDSecure'} · atualização automática a cada 3 segundos</p></div><span className={'turnstile-connection '+(connected?'connected':'unavailable')} role="status">{connected?<Wifi size={15}/>:<WifiOff size={15}/>} {error?'Consulta indisponível':data?data.mode==='simulation'?'Simulação · dados fictícios':statusNames[data.status]||'Consulta indisponível':'Consultando central…'}</span></div>
   <div className="turnstile-notice"><Clock3 size={16}/><span>Acesso autorizado registra uma liberação. Giro e sentido físico ainda não validados; a presença da portaria permanece separada.</span></div>
   {error&&<p className="turnstile-error" role="status">{error}</p>}
   {data&&data.status!=='connected'&&<p className="turnstile-error" role="status">{data.status==='unconfigured'?'Configure a integração privada com iDSecure nesta instalação.':data.status==='authentication'?'O administrador precisa revisar a credencial privada da integração.':'A central não respondeu à última consulta. Os registros abaixo são os últimos recebidos.'}</p>}

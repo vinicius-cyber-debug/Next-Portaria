@@ -45,6 +45,20 @@ export function createDemoSeed(now=new Date().toISOString()) {
   const solved=apply('INCIDENT_CREATE',{title:'Leitor de crachá conferido',description:'Teste preventivo do leitor de acesso.',category:'Equipamentos',severity:'low',location:'Portaria principal',responsible:'Equipe de apoio',attachmentIds:[]},-26);
   apply('INCIDENT_UPDATE',{id:solved.id,status:'resolved',resolution:'Leitura conferida e funcionamento normal.'},-25);
   apply('SHIFT_HANDOVER',{shift:'Turno da manhã',summary:'Operação acompanhada, entregas programadas e equipe de apoio a postos.',pending:'Acompanhar manutenção da iluminação lateral.',incidentIds:[first.id]},-1);
+  // Presentation examples of the new standing-access, boat and production flows.
+  apply('MASTER_SAVE',{kind:'companies',record:{name:'Equipe de demonstração (fictícia)',active:true,notes:'Empresa inteiramente fictícia para apresentação.'}},-24);
+  for(const [name,category,mode,scenario] of [
+    ['Beatriz Monteiro (fictícia)','employee','controlled','ready'],
+    ['Renata Lima (fictícia)','employee','controlled','productive'],
+    ['Eduardo Sousa (fictício)','visitor','unobserved','boat'],
+  ]){
+    const person=apply('MASTER_SAVE',{kind:'people',record:{name,company:'Equipe de demonstração (fictícia)',category,securityStatus:'cleared',active:true,notes:'Registro fictício para apresentação.'}},-24);
+    apply('PERSON_AUTHORIZE',{personId:person.id,areaIds:[reception.id,warehouse.id],validFrom:at(-24),validUntil:at(24*30),exitControl:mode,reason:'Autorização fictícia revisada para a demonstração.'},-12);
+    if(scenario!=='ready'){
+      const visit=apply('PERSON_ENTER',{personId:person.id,areaId:reception.id,identityConfirmed:true},-1);
+      if(scenario==='productive')apply('EMPLOYEE_LEAVE',{id:visit.id,productionPeriod:'Produção da manhã · demonstração',reason:'Intervalo fictício durante o período produtivo.'},-0.25);
+    }
+  }
   const checked=validateState(state);
   checked.audit=state.audit;
   return checked;
