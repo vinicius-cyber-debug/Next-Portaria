@@ -10,6 +10,8 @@ O Next Portaria reúne autorizações, pessoas, visitantes e veículos em uma op
 
 A versão `0.7.0` usa **PostgreSQL 17**, arquivos privados fora do código e envio de fotos e vídeos com retomada nas ocorrências. Consulte [PostgreSQL e recuperação](docs/POSTGRESQL.md), [vídeos e retenção](docs/MIDIAS.md) e [implantação no Windows Server](docs/IMPLANTACAO-SERVIDOR.md). A demonstração permanece uma referência visual.
 
+A branch de desenvolvimento acrescenta a [Gestão do Porto — Fase 1](docs/GESTAO-PORTO.md): tarifas versionadas, solicitações, aprovação e entrada de veículos, com estimativa por calendário. O módulo permanece desativado por padrão e destinado à homologação; saída, cobrança e pagamentos aguardam a Fase 2.
+
 [**Abrir demonstração**](https://vinicius-cyber-debug.github.io/Next-Portaria/) · [Estudo de caso](docs/ESTUDO-DE-CASO.md) · [Vídeo de 40s](docs/assets/fluxo-visita.mp4) · [Funcionalidades](#o-que-você-pode-fazer) · [Começar](#comece-por-aqui) · [Documentação](#documentação)
 
 Experimente no navegador, sem instalação ou login, com dados fictícios e alterações apenas na memória da aba.

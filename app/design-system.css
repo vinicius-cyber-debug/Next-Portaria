@@ -368,6 +368,18 @@
 }
 /* Refinement: a compact operational overview and progressive forms. */
 @media screen {
+  .porto-navigation {display: flex; justify-content: space-between; align-items: flex-start; gap: 14px; margin-bottom: 18px; flex-wrap: wrap}
+  .porto-navigation .tabs {margin-bottom: 0}
+  .porto-kpis .stat-value {font-size: 27px}
+  .porto-rate-row {display: flex; justify-content: space-between; align-items: center; gap: 20px; padding: 12px 0; border-bottom: 1px solid var(--border)}
+  .porto-clock {margin-top: 18px}
+  .porto-lookup-search {margin-top: 8px}
+  .porto-lookup .field-hint {display: block; margin-top: 6px}
+  .porto-tariff-editor {display: grid; gap: 16px; margin: 20px 0}
+  .porto-tariff-editor fieldset {min-width: 0; padding: 16px; margin: 0; border: 1px solid var(--border); border-radius: 10px}
+  .porto-tariff-editor legend {font-size: 14px; font-weight: 600; padding: 0 6px}
+  .porto-tariff-editor + .button {margin-bottom: 20px}
+  .porto-kpis {grid-template-columns: repeat(auto-fit,minmax(190px,1fr))}
   .access-kpis .stat-card {min-height: 100px; padding: 15px}
   body:has(.modal-overlay) .toast {visibility: hidden}
   .access-query-card {margin-bottom: 18px}
@@ -431,6 +443,9 @@
   .access-query-row > form {grid-column: 1/-1}
 }
 @media screen and (max-width: 540px) {
+  .porto-kpis {grid-template-columns: repeat(2,minmax(0,1fr))}
+  .porto-navigation > .actions {width: 100%}
+  .porto-navigation > .actions .button {flex: 1}
   .access-kpis .stat-card,.stat-card {display: grid; grid-template-columns: 28px minmax(0,1fr); align-items: center; min-height: 96px; gap: 8px; padding: 12px; flex-wrap: nowrap}
   .stat-copy {min-width: 0}
   .stat-icon {width: 28px; height: 32px}

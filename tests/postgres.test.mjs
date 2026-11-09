@@ -45,7 +45,7 @@ test('PostgreSQL real: migracoes, API, concorrencia, arquivos privados e recuper
   const state=async()=>(await request('/state')).data;
   const command=async(type,payload,revision)=>(await request('/commands',{method:'POST',body:{type,payload,revision:revision??(await state()).revision,idempotencyKey:randomUUID()}}));
   await t.test('migracoes sao repetiveis e a API usa papel sem privilegios administrativos',async()=>{
-   assert.equal((await admin.query('SELECT count(*) AS n FROM portaria_migrations')).rows[0].n,'3');
+   assert.equal((await admin.query('SELECT count(*) AS n FROM portaria_migrations')).rows[0].n,'4');
    assert.equal((await db.prepare('SELECT usesuper FROM pg_user WHERE usename=current_user').first()).usesuper,false);
    assert.equal((await request('/session')).status,401);
   });

@@ -1,4 +1,4 @@
-const triggerMessages=new Set(['REVISION_CONFLICT','ACCESS_REVOKED','LAST_ADMIN','AUDIT_IMMUTABLE']);
+const triggerMessages=new Set(['REVISION_CONFLICT','ACCESS_REVOKED','LAST_ADMIN','AUDIT_IMMUTABLE','PORTO_FULL_RESTORE_REQUIRED']);
 const connectionCodes=new Set(['ECONNRESET','ECONNREFUSED','ETIMEDOUT','EPIPE','ENOTFOUND']);
 type Failure={code?:string;severity?:string;message?:string};
 

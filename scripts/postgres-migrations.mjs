@@ -3,6 +3,10 @@ import {createHash} from 'node:crypto';
 export async function grantApplicationRole(pool,role='portaria_app'){
  if(!/^[a-z][a-z0-9_]*$/.test(role))throw Error('Papel PostgreSQL invalido.');const name='"'+role+'"';
  await pool.query(`GRANT USAGE ON SCHEMA public TO ${name}; GRANT SELECT,INSERT,UPDATE,DELETE ON ALL TABLES IN SCHEMA public TO ${name}; GRANT USAGE,SELECT ON ALL SEQUENCES IN SCHEMA public TO ${name}; ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT,INSERT,UPDATE,DELETE ON TABLES TO ${name}; ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT USAGE,SELECT ON SEQUENCES TO ${name}; REVOKE ALL ON portaria_migrations FROM ${name}; REVOKE UPDATE,DELETE ON operational_audit FROM ${name};`);
+ const immutable=['porto_tabelas_tarifarias','porto_tarifas','porto_eventos','porto_comandos','porto_permanencias'];
+ const existing=(await pool.query("SELECT tablename FROM pg_tables WHERE schemaname='public' AND tablename=ANY($1::text[])",[immutable])).rows.map(row=>'"'+row.tablename+'"');
+ if(existing.length)await pool.query(`REVOKE UPDATE,DELETE ON ${existing.join(',')} FROM ${name}`);
+ if((await pool.query("SELECT to_regclass('public.porto_solicitacoes') AS present")).rows[0].present)await pool.query(`REVOKE DELETE ON porto_solicitacoes FROM ${name}`);
 }
 export async function migratePostgres(pool){
  const client=await pool.connect();
