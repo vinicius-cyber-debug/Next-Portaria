@@ -105,9 +105,11 @@ try{
   await page.goto(entry);await expect(page.locator('main h1')).toContainText('Visão geral');await openModule('Central de Acesso');
  }
  async function vehicleSteps(width){
-  const dialog=page.getByRole('dialog'),navigation=dialog.getByRole('navigation',{name:'Etapas do cadastro'});
+  const dialog=page.getByRole('dialog'),navigation=dialog.getByRole('navigation',{name:'Etapas do cadastro'}),plate=dialog.getByRole('textbox',{name:/^Placa/});
   await dialog.getByRole('button',{name:'Próximo',exact:true}).click();await expect(navigation.locator('[aria-current="step"]')).toContainText('Veículo');
-  await dialog.getByRole('textbox',{name:/^Placa/}).fill('QAT1A23');await dialog.getByRole('textbox',{name:/^Motorista/}).fill('Condutor fictício');await dialog.getByRole('combobox',{name:/^Empresa \/ origem/}).fill('Empresa fictícia');
+  // Wait for the validation focus before typing into another field; its rAF must not race the driver fill.
+  await expect(plate).toBeFocused();await plate.fill('QAT1A23');await dialog.getByRole('textbox',{name:/^Motorista/}).fill('Condutor fictício');await dialog.getByRole('combobox',{name:/^Empresa \/ origem/}).fill('Empresa fictícia');
+  await expect(plate).toHaveValue('QAT1A23');await expect(dialog.getByRole('textbox',{name:/^Motorista/})).toHaveValue('Condutor fictício');
   await dialog.getByRole('button',{name:'Próximo',exact:true}).click();await expect(dialog.getByText('Acompanhantes cadastrados',{exact:true})).toBeVisible();
   await dialog.getByLabel('Elisa Ramos',{exact:true}).check();await check(width+'-veiculo-etapa-acesso');
   await dialog.getByRole('button',{name:'Próximo',exact:true}).click();await expect(dialog.getByRole('textbox',{name:/^Motivo da entrada/})).toBeVisible();await check(width+'-veiculo-etapa-operacao');
