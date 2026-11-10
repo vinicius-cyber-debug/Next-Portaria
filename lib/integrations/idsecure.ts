@@ -38,7 +38,7 @@ export class IdSecureReader {
  get sourceId(){return this.#config.sourceId}
  static async fromFile(path:string){const config=JSON.parse(await readFile(path,'utf8')) as IdSecureConfig;return new IdSecureReader(config,await readFile(config.certificatePath,'utf8'))}
  private async call(path:string,method:'GET'|'POST',body:unknown,authenticated=true):Promise<unknown>{
-  if(!((method==='POST'&&(path==='/api/login/'||path.startsWith('/api/user/list?')))||(method==='GET'&&(/^\/api\/user\/\d+$/.test(path)||path.startsWith('/api/access/monitor?')))))throw new IntegrationError('unsupported');
+  if(!((method==='POST'&&(path==='/api/login/'||path.startsWith('/api/user/list?')))||(method==='GET'&&(/^\/api\/user\/\d+$/.test(path)||path.startsWith('/api/access/monitor?')||path==='/api/device/'))))throw new IntegrationError('unsupported');
   if(authenticated&&!this.#token)await this.login();const encoded=body===undefined?undefined:JSON.stringify(body);
   return new Promise((resolve,reject)=>{
    const request=httpsRequest(this.#config.origin+path,{method,ca:this.#ca,allowPartialTrustChain:true,checkServerIdentity:(_host,certificate)=>certificate.fingerprint256.toUpperCase()===this.#config.fingerprint256.toUpperCase()?undefined:Error('Certificate mismatch'),timeout:10000,headers:{accept:'application/json',...(encoded!==undefined?{'content-type':'application/json','content-length':Buffer.byteLength(encoded)}:{}),...(authenticated?{authorization:'Bearer '+this.#token}:{})}},response=>{
@@ -62,6 +62,11 @@ export class IdSecureReader {
   const record=await this.call('/api/user/'+nativeId(person.recordId),'GET',undefined) as ExternalRow;
   if(nativeId(record.idDevice)!==person.nativeId||nativeId(record.id)!==person.recordId)throw new IntegrationError('invalid_input');
   const fresh=directoryPerson(record);person.inactive=fresh.inactive;person.blocked=fresh.blocked;person.visitor=fresh.visitor;return directoryPhoto(record.foto);
+ }
+ async readDevices(){
+  const response=await this.call('/api/device/','GET',undefined) as ExternalRow,rows=Array.isArray(response)?response:response.data;
+  if(!Array.isArray(rows)||rows.length>500)throw new IntegrationError('invalid_input');
+  return rows.map((row:ExternalRow)=>({id:nativeId(row.id),name:String(row.name??'').slice(0,150),model:Number(row.model),firmware:String(row.versao??'').slice(0,60),faceReaders:Number(row.idfaceCount??0),online:row.isCurrentlyOnline===true}));
  }
  async readMonitor(){
   // The central returns its configured window (currently 15), regardless of limite.

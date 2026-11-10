@@ -3,6 +3,7 @@ import { CAPABILITY_DEFINITIONS, defaultCapabilities, visibleSnapshot } from '..
 import { assertActiveCollection } from '../lib/module-policy.mjs';
 import { assertVisitEligibility } from '../lib/physical-access.mjs';
 import { createDemoSeed, DEMO_USERS } from './seed.mjs';
+import {jpegDimensions} from '../lib/visitor-photo.mjs';
 import {demoMonitor} from './monitor.mjs';
 
 const ORIGIN='https://demo.next-portaria.invalid';
@@ -33,6 +34,7 @@ function filteredRecords(state,query) {
 export function createDemoApi({now=()=>new Date().toISOString(),origin=ORIGIN}={}) {
   let state=createDemoSeed(now()),revision=1;
   const monitorStartedAt=Date.parse(now());
+  const photos=new Map();
   const actor=clone(DEMO_USERS[0]),passes=new Map(),readNotices=new Set(),commands=new Map();
   const snapshot=()=>visibleSnapshot({state,revision},actor);
   const notices=()=>state.visitors.filter(visit=>visit.status==='pending').map(visit=>({id:`demo_notice_${visit.id}`,kind:'visitor_pending',entityId:visit.id,section:'visitors',title:'Solicitação aguardando autorização',description:`${visit.name} · ${visit.purpose}`,createdAt:visit.requestedAt,readAt:readNotices.has(`demo_notice_${visit.id}`)?now():null}));
@@ -47,6 +49,12 @@ export function createDemoApi({now=()=>new Date().toISOString(),origin=ORIGIN}={
       const body=typeof rawBody==='string'&&rawBody?JSON.parse(rawBody):{};
       const path=url.pathname.slice(4),query=url.searchParams;
       if(method==='GET'&&path==='/integrations/idsecure/monitor')return json(demoMonitor(state,now(),monitorStartedAt));
+      if(method==='POST'&&path==='/visitor-photos'){
+        if(!(rawBody instanceof FormData))return error('Selecione a foto capturada.');const file=rawBody.get('file');if(!(file instanceof File)||file.type!=='image/jpeg')return error('Use uma foto JPEG.');
+        const bytes=new Uint8Array(await file.arrayBuffer());jpegDimensions(bytes);const id='attachment_'+crypto.randomUUID(),sha256=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes)),b=>b.toString(16).padStart(2,'0')).join('');
+        const parts=[];for(let i=0;i<bytes.length;i+=8192)parts.push(String.fromCharCode(...bytes.subarray(i,i+8192)));photos.set(id,{sha256,url:'data:image/jpeg;base64,'+btoa(parts.join(''))});revision++;
+        return json({attachment:{id,name:'Foto fictícia em memória',type:'image/jpeg',size:file.size},revision,demo:true});
+      }
       if(method==='GET'&&path==='/session')return json({user:clone(actor),capabilities:actor.capabilities,environment:'demo',demo:true});
       if(method==='GET'&&path==='/state')return json(snapshot());
       if(method==='GET'&&path==='/sync')return json(Number(query.get('since'))===revision?{revision,user:clone(actor),capabilities:actor.capabilities,unchanged:true}:{...snapshot(),reset:true});
@@ -65,7 +73,12 @@ export function createDemoApi({now=()=>new Date().toISOString(),origin=ORIGIN}={
         const signature=JSON.stringify({type:body.type,payload:body.payload??{}}),existing=body.idempotencyKey?commands.get(body.idempotencyKey):null;
         if(existing)return existing.signature===signature?json({...snapshot(),result:clone(existing.result),demo:true}):error('Essa solicitação já foi usada com outros dados.',409,'CONFLICT');
         if(body.revision!==revision)return error('A demonstração foi atualizada. Revise os dados e tente novamente.',409,'CONFLICT');
-        const outcome=execute(state,{type:body.type,payload:body.payload??{},at:now()},actor);
+        const payload={...(body.payload??{})},photo=payload.photoAttachmentId?photos.get(payload.photoAttachmentId):null;
+        if(payload.visitorPhoto)return error('Use uma foto capturada nesta demonstração.');
+        if(payload.photoAttachmentId&&!photo)return error('Foto não encontrada nesta aba.');
+        if(photo)payload.visitorPhoto={attachmentId:payload.photoAttachmentId,sha256:photo.sha256};
+        const outcome=execute(state,{type:body.type,payload,at:now()},actor);
+        if(photo)outcome.result.demoPhotoUrl=photo.url;
         state=outcome.state;revision++;
         const response={...snapshot(),result:outcome.result,demo:true};
         if(body.idempotencyKey)commands.set(body.idempotencyKey,{signature,result:clone(outcome.result)});

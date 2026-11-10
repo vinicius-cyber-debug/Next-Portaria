@@ -44,7 +44,9 @@
     "test:access": "node --experimental-strip-types --test tests/access-modes.test.mjs tests/idsecure.test.mjs",
     "test:access:browser": "node --experimental-strip-types tests/access-browser.mjs",
     "test:monitor:browser": "node --experimental-strip-types tests/turnstile-browser.mjs",
-    "demo:present": "vite preview --config demo/vite.config.ts --host 127.0.0.1 --port 4175 --strictPort"
+    "demo:present": "vite preview --config demo/vite.config.ts --host 127.0.0.1 --port 4175 --strictPort",
+    "test:visitor-face:browser": "node --experimental-strip-types tests/visitor-face-browser.mjs",
+    "integration:face:plan": "node --experimental-strip-types scripts/visitor-face-plan.mjs"
   },
   "dependencies": {
     "drizzle-orm": "0.45.2",

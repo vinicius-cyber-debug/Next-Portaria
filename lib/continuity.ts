@@ -160,7 +160,7 @@ async function notificationSummary(db:D1Database) {
 }
 async function getBackup(context:ContinuityContext,id:string) {const backup=parseBody<Backup>(await stmt(context.db,'SELECT body FROM operational_backup_runs WHERE id = ?',id).first<{body:string}>());if(!backup||backup.status!=='ready')reject('NOT_FOUND','Backup disponível não encontrado.',404);if(!context.bucket)reject('STORAGE_UNAVAILABLE','Armazenamento privado ainda não está disponível.',503);return backup;}
 async function attachmentAvailability(context:ContinuityContext,state:OperationalState) {
-  const ids=[...new Set<string>((state.incidents??[]).flatMap((incident:Record<string,any>)=>incident.attachmentIds??[]))];let unavailable=0;
+  const ids=[...new Set<string>([...(state.incidents??[]).flatMap((incident:Record<string,any>)=>incident.attachmentIds??[]),...(state.visitors??[]).flatMap((visit:Record<string,any>)=>visit.visitorPhoto?[visit.visitorPhoto.attachmentId]:[])])];let unavailable=0;
   for(const id of ids){
     const metadata=await stmt(context.db,'SELECT object_key,size FROM operational_attachments WHERE id = ?',id).first<{object_key:string;size:number}>();
     if(!metadata){unavailable++;continue;}
