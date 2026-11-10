@@ -109,6 +109,8 @@ O [guia de operação](docs/OPERACAO-LOCAL.md) e a [arquitetura](docs/ARQUITETUR
 
 O [relatório do redesign Enterprise](docs/REDESIGN-ENTERPRISE.md) descreve o Design System, a auditoria das telas e a verificação de responsividade/acessibilidade com `npm run test:ui`.
 
+A [automação externa de horários](docs/AUTOMACAO-SAIDA.md) possui cálculo e acompanhamento em modo de prévia, com testes de reconciliação no simulador. O envio de bloqueios físicos ao iDSecure ainda depende de implementação e homologação.
+
 ## Escopo atual
 
 A instalação atende uma unidade com múltiplas portarias. Gravações exigem conexão; o histórico é consultado por páginas e as notificações são internas. A câmera de QR no celular exige HTTPS. O backup JSON operacional e o backup completo têm finalidades diferentes, descritas no guia de operação.
