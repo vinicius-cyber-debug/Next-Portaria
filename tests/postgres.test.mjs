@@ -224,13 +224,18 @@ test('PostgreSQL real: migracoes, API, concorrencia, arquivos privados e recuper
    }
   });
   await t.test('backup criptografado restaura banco, imagem e midia e rejeita adulteracao',{skip:!local},async()=>{
+   const portrait=Uint8Array.from([255,216,255,192,0,17,8,1,224,2,128,3,1,17,0,2,17,0,3,17,0,255,217]),form=new FormData();form.set('file',new File([portrait],'visitante.jpg',{type:'image/jpeg'}));
+   const upload=await request('/visitor-photos',{method:'POST',body:form});assert.equal(upload.status,200,JSON.stringify(upload.data));
+   const photoVisit=await command('VISITOR_GATE_REGISTER',{name:'Visitante fotografado QA',company:'Empresa fictícia QA',purpose:'Homologação de backup da foto',host:'Contato QA',expectedAt:new Date().toISOString(),validUntil:new Date(Date.now()+3600000).toISOString(),photoAttachmentId:upload.data.attachment.id,identityConfirmed:true});assert.equal(photoVisit.status,200,JSON.stringify(photoVisit.data));
+   const photoKey=(await admin.query('SELECT object_key FROM operational_attachments WHERE id=$1',[upload.data.attachment.id])).rows[0].object_key;
    const adminFile=join(temp,'qa-admin.json');await writeFile(adminFile,JSON.stringify(owner),{mode:0o600});
    const config={...local,dataRoot:temp,adminFile,mediaRoot,database:{...owner,database,user:role,password:appPassword}};
    const destination=join(temp,'backup'),keyFile=join(temp,'recovery.key');
-   const references=Number((await admin.query("SELECT (SELECT count(*) FROM operational_attachments)+(SELECT count(*) FROM media_assets WHERE status='ready') AS n")).rows[0].n);
+   const references=Number((await admin.query("SELECT (SELECT count(*) FROM operational_attachments)+(SELECT count(*) FROM media_assets WHERE status='ready')+(SELECT count(*) FROM operational_records WHERE collection='visitors' AND body::jsonb->'visitorPhoto'->>'sha256' IS NOT NULL) AS n")).rows[0].n);
    const before=await postgresInventory(admin),backup=await createPostgresBackup({config,destination,keyFile,quiesced:true});assert.equal(backup.status,'verified');assert.equal(backup.references,references);assert.deepEqual(await postgresInventory(admin),before);
    const recoveredDatabase='portaria_recovered_'+token,recoveredMedia=join(temp,'recovered-media');
-   try{const recovered=await restorePostgresBackup({config,backupDirectory:destination,keyFile,database:recoveredDatabase,mediaRoot:recoveredMedia});assert.equal(recovered.references,references);assert.equal((await new FileObjectStore(recoveredMedia).head('media/video-qa')).size,8*1024*1024);}finally{await control.query(`DROP DATABASE IF EXISTS "${recoveredDatabase}" WITH (FORCE)`);}
+   try{const recovered=await restorePostgresBackup({config,backupDirectory:destination,keyFile,database:recoveredDatabase,mediaRoot:recoveredMedia});assert.equal(recovered.references,references);assert.equal((await new FileObjectStore(recoveredMedia).head('media/video-qa')).size,8*1024*1024);assert.equal((await new FileObjectStore(recoveredMedia).head(photoKey)).size,portrait.length);}finally{await control.query(`DROP DATABASE IF EXISTS "${recoveredDatabase}" WITH (FORCE)`);}
+   const corrupt=Uint8Array.from(portrait);corrupt[10]^=1;await bucket.put(photoKey,corrupt);try{await assert.rejects(createPostgresBackup({config,destination:join(temp,'corrupt-photo-backup'),keyFile,quiesced:true}),/integridade/i);}finally{await bucket.put(photoKey,portrait);}
    const encrypted=join(destination,'00000000.pgenc'),contents=await readFile(encrypted);contents[40]^=1;await writeFile(encrypted,contents);
    await assert.rejects(verifyPostgresBackup({config,backupDirectory:destination,keyFile}),/criptogr|recuperado|integridade/i);
   });

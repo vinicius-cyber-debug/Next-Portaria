@@ -7,6 +7,7 @@ import { assertVisitEligibility } from './physical-access.mjs';
 import { readOperationalSnapshot, operationalVisible, stateDelta, syncState, pagedRecords } from './state-sync.ts';
 import type {Database as D1Database,PreparedStatement as D1PreparedStatement,QueryResult as D1Result,ObjectStore as R2Bucket,MediaHandler,PortoHandler} from './persistence/contracts.ts';
 import {validateDirectoryPerson} from './person-directory.mjs';
+import {jpegDimensions,VISITOR_PHOTO_MAX} from './visitor-photo.mjs';
 import {APP_VERSION} from './version.mjs';
 
 type User = {id:string;email:string;name:string;role:string;status:string;mustChangePassword?:boolean;createdAt?:string;updatedAt?:string;capabilities?:Record<string,boolean>;overrides?:Record<string,boolean>};
@@ -250,8 +251,8 @@ async function accessList(db:D1Database) {
   const list=await userList(db),users=await Promise.all((list.users as User[]).map(user=>withCapabilities(db,user)));
   return {definitions:CAPABILITY_DEFINITIONS,users,defaults:Object.fromEntries(ACTIVE_ROLES.map(role=>[role,defaultCapabilities(role)]))};
 }
-async function attachmentBytes(request:Request) {
-  const limit=5*1024*1024+16384,reader=request.body?.getReader();if(!reader)reject('VALIDATION','Selecione um arquivo.');
+async function attachmentBytes(request:Request,limit=5*1024*1024+16384) {
+  const reader=request.body?.getReader();if(!reader)reject('VALIDATION','Selecione um arquivo.');
   const chunks:Uint8Array[]=[];let size=0;while(true){const part=await reader.read();if(part.done)break;size+=part.value.byteLength;if(size>limit){await reader.cancel();reject('BODY_TOO_LARGE','O arquivo deve ter até 5 MiB.',413);}chunks.push(part.value);}
   const all=new Uint8Array(size);let offset=0;for(const chunk of chunks){all.set(chunk,offset);offset+=chunk.length;}return all;
 }
@@ -268,7 +269,7 @@ async function assertRestoreAttachments(db:D1Database,bucket:R2Bucket|undefined,
     const bytes=await new Response(object.body).arrayBuffer(),hash=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes)),b=>b.toString(16).padStart(2,'0')).join('');
     if(hash!==photo.sha256)reject('ATTACHMENTS_UNAVAILABLE','Integridade da foto não confere.',422);
   }
-  const ids=[...new Set<string>((state.incidents??[]).flatMap((incident:{attachmentIds?:string[]})=>incident.attachmentIds??[]))];
+  const ids=[...new Set<string>([...(state.incidents??[]).flatMap((incident:{attachmentIds?:string[]})=>incident.attachmentIds??[]),...(state.visitors??[]).flatMap((visit:{visitorPhoto?:{attachmentId:string}})=>visit.visitorPhoto?[visit.visitorPhoto.attachmentId]:[])])];
   if(ids.length&&!bucket)reject('ATTACHMENTS_UNAVAILABLE','O backup referencia anexos, mas o armazenamento privado está indisponível.',422);
   for(let offset=0;offset<ids.length;offset+=20)await Promise.all(ids.slice(offset,offset+20).map(async id=>{
     const metadata=await statement(db,'SELECT object_key,size FROM operational_attachments WHERE id = ?',id).first<{object_key:string;size:number}>();
@@ -398,16 +399,23 @@ export async function handleApi(request:Request,db:D1Database,resources:Resource
       assertVisitEligibility(current.state,visitor,new Date(now).toISOString(),{entry:true});
       return response({visitor:redactValue(visitor,user.capabilities),pass,revision:current.revision});
     }
-    if(path==='/api/attachments'&&request.method==='POST') {
-      requireCapability(user,'documentView');requireCapability(user,'incidentManage');if(!canWithCapabilities(user,'INCIDENT_CREATE'))reject('FORBIDDEN','Seu perfil não pode anexar arquivos.',403);if(!resources.bucket)reject('STORAGE_UNAVAILABLE','Armazenamento privado indisponível.',503);
+    if((path==='/api/attachments'||path==='/api/visitor-photos')&&request.method==='POST') {
+      const visitorPhoto=path==='/api/visitor-photos';requireCapability(user,'documentView');if(visitorPhoto){if(!canWithCapabilities(user,'VISITOR_REQUEST'))reject('FORBIDDEN','Seu perfil não pode fotografar visitantes.',403);}else{requireCapability(user,'incidentManage');if(!canWithCapabilities(user,'INCIDENT_CREATE'))reject('FORBIDDEN','Seu perfil não pode anexar arquivos.',403);}if(!resources.bucket)reject('STORAGE_UNAVAILABLE','Armazenamento privado indisponível.',503);
       if(!request.headers.get('content-type')?.startsWith('multipart/form-data'))reject('CONTENT_TYPE','Selecione um arquivo para enviar.',415);
-      const bytes=await attachmentBytes(request),form=await new Response(bytes,{headers:{'Content-Type':request.headers.get('content-type')!}}).formData(),file=form.get('file');
+      const bytes=await attachmentBytes(request,visitorPhoto?VISITOR_PHOTO_MAX+16384:undefined),form=await new Response(bytes,{headers:{'Content-Type':request.headers.get('content-type')!}}).formData(),file=form.get('file');
       if(!(file instanceof File)||file.size<1||file.size>5*1024*1024)reject('VALIDATION','Selecione um arquivo de até 5 MiB.');
-      const contents=new Uint8Array(await file.arrayBuffer());if(!validFileType(file.type,contents))reject('VALIDATION','O conteúdo deve ser PNG, JPEG, WebP ou PDF válido.');
-      const name=file.name.replace(/[\\/\x00-\x1f"<>]/g,'_').slice(0,150)||'arquivo',id=uuid('attachment'),objectKey=`attachments/${id}`,createdAt=new Date().toISOString(),attachment={id,name,type:file.type,size:file.size,createdAt,createdBy:user.id};
+      const contents=new Uint8Array(await file.arrayBuffer());if(visitorPhoto){if(file.type!=='image/jpeg')reject('VALIDATION','A captura deve ser JPEG.');jpegDimensions(contents);}if(!validFileType(file.type,contents))reject('VALIDATION','O conteúdo deve ser PNG, JPEG, WebP ou PDF válido.');
+      const name=(visitorPhoto?'Foto do visitante.jpg':file.name).replace(/[\\/\x00-\x1f"<>]/g,'_').slice(0,150)||'arquivo',id=uuid('attachment'),objectKey=`attachments/${id}`,createdAt=new Date().toISOString(),attachment={id,name,type:file.type,size:file.size,createdAt,createdBy:user.id};
       const current=await readSnapshot(db);await resources.bucket.put(objectKey,contents,{httpMetadata:{contentType:file.type}});
       try{await commit(db,user,current.revision,[statement(db,'INSERT INTO operational_attachments (id,object_key,name,type,size,created_at,created_by) VALUES (?,?,?,?,?,?,?)',id,objectKey,name,file.type,file.size,createdAt,user.id),appendAudit(db,makeAudit(user,'ATTACHMENT_UPLOAD','attachment',id,null,attachment))],commandId(user,uuid('upload')),await sha(attachment),attachment);}catch(error){await resources.bucket.delete(objectKey);throw error;}
       return response({attachment,revision:current.revision+1});
+    }
+    if(path.startsWith('/api/visitor-photos/')&&request.method==='GET'){
+      requireCapability(user,'documentView');const record=await statement(db,"SELECT body FROM operational_records WHERE collection='visitors' AND id=?",path.slice('/api/visitor-photos/'.length)).first<{body:string}>(),photo=record?JSON.parse(record.body).visitorPhoto:null;
+      const metadata=photo?await statement(db,'SELECT object_key,type,size FROM operational_attachments WHERE id=?',photo.attachmentId).first<{object_key:string;type:string;size:number}>():null;
+      if(!metadata||metadata.type!=='image/jpeg'||!resources.bucket)reject('NOT_FOUND','Foto não disponível.',404);
+      const object=await resources.bucket.get(metadata.object_key);if(!object||object.size!==metadata.size)reject('NOT_FOUND','Foto não disponível.',404);
+      return new Response(object.body,{headers:{...JSON_HEADERS,'Content-Type':'image/jpeg','Content-Length':String(object.size),'Content-Security-Policy':"sandbox; default-src 'none'"}});
     }
     if(path.startsWith('/api/attachments/')&&request.method==='GET') {
       requireCapability(user,'documentView');const id=path.slice('/api/attachments/'.length),attachment=await statement(db,'SELECT object_key,name,type,size FROM operational_attachments WHERE id = ?',id).first<{object_key:string;name:string;type:string;size:number}>();if(!attachment)reject('NOT_FOUND','Anexo não encontrado.',404);if(!resources.bucket)reject('STORAGE_UNAVAILABLE','Armazenamento privado indisponível.',503);
@@ -419,8 +427,19 @@ export async function handleApi(request:Request,db:D1Database,resources:Resource
     if(path==='/api/commands'&&request.method==='POST') {
       const body=await readBody(request),revision=expectedRevision(body.revision),id=commandId(user,body.idempotencyKey);
       const type=field(body.type,'Operação',80);assertActiveCommand({type,payload:body.payload??{}});if(!canWithCapabilities(user,type)) reject('FORBIDDEN','Seu perfil e suas permissões não permitem esta operação.',403);
-      const payload=body.payload??{},hash=await sha({type,payload});const previous=await previousCommand(db,id,hash);if(previous) return replay(db,previous,user);
+      const payload=(body.payload??{}) as Record<string,unknown>,hash=await sha({type,payload});const previous=await previousCommand(db,id,hash);if(previous) return replay(db,previous,user);
       const current=await readSnapshot(db);if(current.revision!==revision) reject('REVISION_CONFLICT','Os dados mudaram. Atualize a página antes de repetir a operação.',409);
+      if(['VISITOR_GATE_REGISTER','VISITOR_REQUEST'].includes(type)){
+        if(type==='VISITOR_GATE_REGISTER')requireCapability(user,'documentView');
+        if(payload.visitorPhoto)reject('VALIDATION','Envie a referência da foto capturada.');
+        if(payload.photoAttachmentId){
+          requireCapability(user,'documentView');const photo=await statement(db,'SELECT object_key,type,size,created_by FROM operational_attachments WHERE id=?',payload.photoAttachmentId).first<{object_key:string;type:string;size:number;created_by:string}>();
+          if(!photo||photo.type!=='image/jpeg'||photo.size>VISITOR_PHOTO_MAX||(photo.created_by!==user.id&&user.role!=='admin')||!resources.bucket)reject('VALIDATION','A foto não está disponível para este visitante.');
+          const object=await resources.bucket.get(photo.object_key);if(!object||object.size!==photo.size)reject('VALIDATION','Foto ausente.');
+          const bytes=new Uint8Array(await new Response(object.body).arrayBuffer());jpegDimensions(bytes);
+          payload.visitorPhoto={attachmentId:payload.photoAttachmentId,sha256:Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes)),b=>b.toString(16).padStart(2,'0')).join('')};
+        }
+      }
       if(type==='MASTER_SAVE') {
         const data=payload as Record<string,any>,record=data.record;
         if(data.kind==='people'&&record&&typeof record==='object'&&!Array.isArray(record)) {
