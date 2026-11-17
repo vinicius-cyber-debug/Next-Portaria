@@ -45,7 +45,7 @@ test('PostgreSQL real: migracoes, API, concorrencia, arquivos privados e recuper
   const state=async()=>(await request('/state')).data;
   const command=async(type,payload,revision)=>(await request('/commands',{method:'POST',body:{type,payload,revision:revision??(await state()).revision,idempotencyKey:randomUUID()}}));
   await t.test('migracoes sao repetiveis e a API usa papel sem privilegios administrativos',async()=>{
-   assert.equal((await admin.query('SELECT count(*) AS n FROM portaria_migrations')).rows[0].n,'5');
+   assert.equal((await admin.query('SELECT count(*) AS n FROM portaria_migrations')).rows[0].n,'6');
    assert.equal((await db.prepare('SELECT usesuper FROM pg_user WHERE usename=current_user').first()).usesuper,false);
    assert.equal((await request('/session')).status,401);
   });
@@ -180,7 +180,7 @@ test('PostgreSQL real: migracoes, API, concorrencia, arquivos privados e recuper
    const freePort=async()=>{const socket=tcpServer();await new Promise(done=>socket.listen(0,'127.0.0.1',done));const port=socket.address().port;await new Promise(done=>socket.close(done));return port;};
    const port=await freePort(),uiPort=await freePort(),configFile=join(temp,'server.json');
    await writeFile(configFile,JSON.stringify({host:'127.0.0.1',subnet:'127.0.0.0/8',port,uiPort,cert,key}));
-   const child=spawn(process.execPath,['--experimental-strip-types','scripts/server-process.mjs'],{cwd:resolve('.'),windowsHide:true,detached:process.platform!=='win32',env:{...process.env,PORTO_DB_PROVIDER:'postgres',PORTO_PG_CONFIG:JSON.stringify({...owner,database,user:role,password:appPassword}),PORTO_MEDIA_ROOT:mediaRoot,PORTO_SERVER_CONFIG:configFile,PORTO_NATIVE_PROCESS_FILE:join(temp,'gateway-process.json')},stdio:['ignore','pipe','pipe']});
+   const child=spawn(process.execPath,['--experimental-strip-types','scripts/server-process.mjs'],{cwd:resolve('.'),windowsHide:true,detached:process.platform!=='win32',env:{...process.env,PORTO_DB_PROVIDER:'postgres',PORTO_PG_CONFIG:JSON.stringify({...owner,database,user:role,password:appPassword}),PORTO_MEDIA_ROOT:mediaRoot,PORTO_IDSECURE_CONFIG:join(temp,'no-real-integration.json'),PORTO_SERVER_CONFIG:configFile,PORTO_NATIVE_PROCESS_FILE:join(temp,'gateway-process.json')},stdio:['ignore','pipe','pipe']});
    let logs='';for(const stream of [child.stdout,child.stderr])stream.on('data',d=>{logs=(logs+d).slice(-4000);});
    const ca=await readFile(cert),origin=`https://127.0.0.1:${port}`;
    const call=(path,options={},data)=>new Promise((done,fail)=>{const req=httpsRequest(origin+path,{ca,timeout:3000,checkServerIdentity:(_host,cert)=>checkServerIdentity('127.0.0.1',cert),...options},res=>{let body='';res.on('data',d=>body+=d);res.on('end',()=>done({status:res.statusCode,headers:res.headers,body}));});req.on('error',fail);req.on('timeout',()=>req.destroy(Error('Timeout')));if(data)req.write(JSON.stringify(data));req.end();});

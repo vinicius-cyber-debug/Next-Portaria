@@ -12,6 +12,8 @@ A versão `0.7.0` usa **PostgreSQL 17**, arquivos privados fora do código e env
 
 A candidata `0.8.0-rc.1` acrescenta a [Gestão do Porto](docs/GESTAO-PORTO.md): tarifa por acesso, solicitações, aprovação, adiantamentos, saída quitada com cobrança atômica, recibos, ajustes, indicadores e caixa. O módulo permanece desativado por padrão e aguarda [homologação empresarial](docs/HOMOLOGACAO-PORTO.md). Dados anteriores por diária conservam sua regra e tarifa; a migração não publica preços automaticamente.
 
+Em desenvolvimento: [setores, líderes e liberação individual de saída](docs/LIBERACAO-SAIDA.md), com janela de 15 minutos, revogação, histórico e serviço integrado ao servidor. A conexão física permanece desativada até homologação acompanhada; vincular funcionários aos setores não altera permissões nas catracas.
+
 [**Abrir demonstração**](https://vinicius-cyber-debug.github.io/Next-Portaria/) · [Estudo de caso](docs/ESTUDO-DE-CASO.md) · [Vídeo de 40s](docs/assets/fluxo-visita.mp4) · [Funcionalidades](#o-que-você-pode-fazer) · [Começar](#comece-por-aqui) · [Documentação](#documentação)
 
 Experimente no navegador, sem instalação ou login, com dados fictícios e alterações apenas na memória da aba.

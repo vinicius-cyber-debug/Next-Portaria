@@ -1,15 +1,14 @@
-import test from 'node:test';
 import assert from 'node:assert/strict';
-import {readFileSync,readdirSync} from 'node:fs';
-import {createHash} from 'node:crypto';
-import {DatabaseSync} from 'node:sqlite';
-import {parseDirectoryJson,directoryPerson,directoryPhoto,IdSecureReader} from '../lib/integrations/idsecure.ts';
-import {mergeDirectory,importDirectory} from '../lib/integrations/directory-import.ts';
-import {createInitialState,execute,validateState} from '../lib/domain.mjs';
-import {assertVisitEligibility} from '../lib/physical-access.mjs';
-import {handleApi} from '../lib/server.ts';
-import {testSession} from './fixture-auth.mjs';
-import {hasPostgres,withPostgresFixture} from './support/postgres-fixture.mjs';
+import { createHash } from 'node:crypto';
+import test from 'node:test';
+import { createInitialState,execute,validateState } from '../lib/domain.mjs';
+import { importDirectory,mergeDirectory } from '../lib/integrations/directory-import.ts';
+import { directoryPerson,directoryPhoto,IdSecureReader,parseDirectoryJson } from '../lib/integrations/idsecure.ts';
+import { assertVisitEligibility } from '../lib/physical-access.mjs';
+import { handleApi } from '../lib/server.ts';
+import { testSession } from './fixture-auth.mjs';
+import { hasPostgres,withPostgresFixture } from './support/postgres-fixture.mjs';
+import { SqliteTestDatabase as D1 } from './support/sqlite-fixture.mjs';
 const at='2026-11-09T12:00:00.000Z',source='fixture-test',person={recordId:'11',nativeId:'9223372036854775807',name:'Funcionário fictício',registration:'M123',documentLast4:'1234',inactive:false,blocked:false,visitor:false};
 const png=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aX1UAAAAASUVORK5CYII=','base64');
 test('adaptador rejeita qualquer comando físico ou escrita antes de acessar credenciais',async()=>{
@@ -56,11 +55,7 @@ test('bloqueio na origem revoga autorização prévia e reativação não a conc
  state=mergeDirectory(state,source,[person],at).state;assert.equal(state.people[0].authorization.status,'revoked');
 });
 
-class D1{
- constructor(){this.sqlite=new DatabaseSync(':memory:');const dir=new URL('../drizzle/',import.meta.url);for(const n of readdirSync(dir).filter(n=>n.endsWith('.sql')).sort())this.sqlite.exec(readFileSync(new URL(n,dir),'utf8'));}
- prepare(sql){const sqlite=this.sqlite;return {sql,params:[],bind(...params){return {...this,params}},async first(){return sqlite.prepare(this.sql).get(...this.params)??null},async run(){return {success:true,results:[],meta:{changes:Number(sqlite.prepare(this.sql).run(...this.params).changes)}}}};}
- async batch(items){this.sqlite.exec('BEGIN');try{const result=items.map(s=>({success:true,results:this.sqlite.prepare(s.sql).all(...s.params)}));this.sqlite.exec('COMMIT');return result;}catch(e){this.sqlite.exec('ROLLBACK');throw e;}}
-}
+
 test('foto exige sessão e documentView; não existe URL pública nem caminho arbitrário',async()=>{
  const db=new D1(),user={id:'admin',name:'Admin',email:'admin@example.test'},cookie=testSession(db,user),photo={objectKey:'directory-photos/'+source+'/'+createHash('sha256').update(png).digest('hex'),sha256:createHash('sha256').update(png).digest('hex'),size:png.length,contentType:'image/png'};
  const state=mergeDirectory(createInitialState(),source,[{...person,photo}],at).state,p=state.people[0];

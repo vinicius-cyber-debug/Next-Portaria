@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "enabled": false,
+  "credentialFile": "C:\\NextPortaria-Dados\\integrations\\idsecure.json",
+  "target": {
+    "sourceId": "idsecure-local",
+    "deviceId": "2",
+    "deviceName": "CATRACA PORTARIA",
+    "model": 17,
+    "firmware": "6.26.0",
+    "serial": "PREENCHER_SERIAL_CONFERIDO",
+    "entryReaderId": "3",
+    "exitReaderId": "4",
+    "entryAreaId": "1",
+    "exitAreaId": "4",
+    "exitAreaName": "Saída",
+    "exitRotation": "anticlockwise"
+  }
+}

@@ -21,7 +21,7 @@
     "status": "node --experimental-strip-types scripts/application.mjs status",
     "backup:full": "node --experimental-strip-types scripts/application.mjs backup",
     "start:secure": "node scripts/start-secure.mjs",
-    "lint": "eslint .",
+    "lint": "eslint . --max-warnings=0",
     "lint:stability": "eslint lib/persistence lib/integrations lib/media.ts lib/postgres-backup.mjs scripts/simulate-access-devices.mjs tests/postgres.test.mjs tests/postgres-stability.test.mjs tests/postgres-transactions.test.mjs tests/integration-preparation.test.mjs tests/support/postgres-fixture.mjs",
     "db:generate": "drizzle-kit generate",
     "db:setup": "node --experimental-strip-types scripts/setup-database.mjs",
@@ -41,6 +41,7 @@
     "dev:demo": "vite --config demo/vite.config.ts",
     "build:demo": "vite build --config demo/vite.config.ts",
     "integration:idsecure": "node --experimental-strip-types scripts/import-idsecure.mjs",
+    "integration:idsecure:credentials": "node --experimental-strip-types scripts/configure-idsecure-credentials.mjs",
     "test:access": "node --experimental-strip-types --test tests/access-modes.test.mjs tests/idsecure.test.mjs",
     "test:access:browser": "node --experimental-strip-types tests/access-browser.mjs",
     "test:monitor:browser": "node --experimental-strip-types tests/turnstile-browser.mjs",
@@ -48,20 +49,25 @@
     "test:visitor-face:browser": "node --experimental-strip-types tests/visitor-face-browser.mjs",
     "integration:face:plan": "node --experimental-strip-types scripts/visitor-face-plan.mjs",
     "access:schedule:once": "node --experimental-strip-types scripts/access-schedule-worker.mjs --once",
-    "access:schedule:watch": "node --experimental-strip-types scripts/access-schedule-worker.mjs"
+    "access:schedule:watch": "node --experimental-strip-types scripts/access-schedule-worker.mjs",
+    "exit:worker": "node --experimental-strip-types scripts/exit-access-worker.mjs",
+    "test:exit:browser": "node --experimental-strip-types tests/exit-browser.mjs",
+    "test:interface:browser": "node --experimental-strip-types tests/interface-browser.mjs",
+    "format": "prettier --write \"app/**/*.{ts,tsx,css}\" \"lib/**/*.{ts,mjs}\" \"tests/support/*.mjs\" tests/security-regressions.test.mjs",
+    "format:check": "prettier --check \"app/**/*.{ts,tsx,css}\" \"lib/**/*.{ts,mjs}\" \"tests/support/*.mjs\" tests/security-regressions.test.mjs"
   },
   "dependencies": {
     "drizzle-orm": "0.45.2",
     "lucide-react": "^1.31.0",
-    "next": "16.3.4",
+    "next": "16.4.6",
     "pg": "8.23.1",
     "qrcode": "1.5.4",
     "react": "19.3.1",
     "react-dom": "19.3.1"
   },
   "devDependencies": {
-    "@cloudflare/vite-plugin": "1.37.1",
-    "@cloudflare/workers-types": "4.20260515.1",
+    "@cloudflare/vite-plugin": "1.70.0",
+    "@cloudflare/workers-types": "5.20261117.1",
     "@playwright/test": "1.65.0",
     "@tailwindcss/postcss": "4.2.1",
     "@types/node": "22.19.19",
@@ -72,20 +78,27 @@
     "@vitejs/plugin-react": "6.0.2",
     "@vitejs/plugin-rsc": "0.5.39",
     "axe-core": "4.14.0",
-    "drizzle-kit": "0.31.10",
+    "drizzle-kit": "0.31.11",
     "eslint": "9.39.4",
-    "eslint-config-next": "16.3.4",
+    "eslint-config-next": "16.4.6",
+    "prettier": "3.9.10",
     "react-server-dom-webpack": "19.3.1",
     "tailwindcss": "4.2.1",
     "typescript": "5.9.3",
-    "vinext": "1.4.4",
-    "vite": "8.3.6",
-    "wrangler": "4.92.0"
+    "vinext": "1.4.6",
+    "vite": "8.3.8",
+    "wrangler": "4.164.0"
   },
   "type": "module",
   "overrides": {
     "miniflare": {
-      "sharp": "0.35.4"
+      "sharp": "0.35.5"
+    },
+    "satori": {
+      "fflate": "0.7.5"
+    },
+    "@esbuild-kit/core-utils": {
+      "esbuild": "0.25.12"
     }
   }
 }

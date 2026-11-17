@@ -1,12 +1,11 @@
-import test from 'node:test';
 import assert from 'node:assert/strict';
-import {readFileSync,readdirSync} from 'node:fs';
-import {DatabaseSync} from 'node:sqlite';
-import {createInitialState,execute,validateState} from '../lib/domain.mjs';
-import {jpegDimensions} from '../lib/visitor-photo.mjs';
-import {handleApi} from '../lib/server.ts';
-import {testSession} from './fixture-auth.mjs';
-import {visitorFacePlan} from '../lib/integrations/visitor-face-plan.mjs';
+import test from 'node:test';
+import { createInitialState,execute,validateState } from '../lib/domain.mjs';
+import { visitorFacePlan } from '../lib/integrations/visitor-face-plan.mjs';
+import { handleApi } from '../lib/server.ts';
+import { jpegDimensions } from '../lib/visitor-photo.mjs';
+import { testSession } from './fixture-auth.mjs';
+import { SqliteTestDatabase as D1 } from './support/sqlite-fixture.mjs';
 const admin={id:'admin',name:'Admin QA',role:'admin'},gate={id:'gate',name:'Porteiro QA',role:'gate'},at=new Date().toISOString(),until=new Date(Date.now()+3600000).toISOString();
 const photo={attachmentId:'attachment_11111111-1111-4111-8111-111111111111',sha256:'a'.repeat(64)},payload={name:'Visitante fictício',company:'Empresa fictícia',purpose:'Reunião',host:'Contato QA',expectedAt:at,validUntil:until,identityConfirmed:true,visitorPhoto:photo};
 const apply=(state,type,data=payload,actor=gate)=>execute(state,{type,payload:data,at},actor);
@@ -40,11 +39,7 @@ test('plano facial é somente leitura, fixa um equipamento e exclui autorizaçã
  assert.throws(()=>visitorFacePlan(created.state,{...config,hardwareWritesEnabled:true},devices,at));assert.throws(()=>visitorFacePlan(created.state,{...config,targetDeviceId:'3'},devices,at));
  const cancelled=apply(created.state,'VISITOR_GATE_REVOKE',{id:created.result.id,reason:'Teste'});assert.equal(visitorFacePlan(cancelled.state,config,devices,at).requests[0].status,'inactive');
 });
-class D1{
- constructor(){this.sqlite=new DatabaseSync(':memory:');const dir=new URL('../drizzle/',import.meta.url);for(const n of readdirSync(dir).filter(n=>n.endsWith('.sql')).sort())this.sqlite.exec(readFileSync(new URL(n,dir),'utf8'));}
- prepare(sql){const sqlite=this.sqlite;return {sql,params:[],bind(...params){return {...this,params}},async first(){return sqlite.prepare(this.sql).get(...this.params)??null},async all(){return {success:true,results:sqlite.prepare(this.sql).all(...this.params)}},async run(){return {success:true,results:[],meta:{changes:Number(sqlite.prepare(this.sql).run(...this.params).changes)}}}};}
- async batch(items){this.sqlite.exec('BEGIN');try{const results=items.map(s=>({success:true,results:this.sqlite.prepare(s.sql).all(...s.params)}));this.sqlite.exec('COMMIT');return results;}catch(e){this.sqlite.exec('ROLLBACK');throw e;}}
-}
+
 test('API vincula foto privada do operador e mantém replay idempotente, sem cadastro facial falso',async()=>{
  const db=new D1(),objects=new Map(),bucket={async put(key,value){objects.set(key,new Uint8Array(value));},async get(key){const b=objects.get(key);return b?{size:b.length,body:new Response(b).body}:null;},async head(key){const b=objects.get(key);return b?{size:b.length}:null;},async delete(key){objects.delete(key);}};
  try{

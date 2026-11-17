@@ -1,5 +1,16 @@
 # Redesign Enterprise Minimalista
 
+## Ajustes de operação em 17/11/2026
+
+- Conexão da central, última consulta confirmada e último evento aparecem separadamente. O monitor diferencia registros antigos de consulta vencida; autorização continua separada de passagem física. O título geral deixou de anunciar “Ao vivo”.
+- Indicadores usam números sem zero à esquerda, com menor altura. Pendências e ações ficam antes dos gráficos; períodos sem movimento usam uma mensagem compacta.
+- O cadastro pesquisa os registros já carregados por nome, empresa ou final do documento, mostra até oito sugestões com categoria, origem e foto privada quando disponível. Teclado, homônimos e limpeza da seleção são cobertos. Selecionar outra pessoa limpa a foto capturada e a conferência anterior; a foto importada não vira cadastro facial automaticamente.
+- Até 1.024 px, a navegação lateral funciona como menu recolhível e a Central usa um seletor de seção, sem abas escondidas horizontalmente. Indicadores usam duas colunas.
+- O formulário mantém três etapas e campos complementares recolhidos. No desktop, a captura fica ao lado da identificação; no celular, o botão “Foto” leva à captura sem abrir a câmera automaticamente.
+- O perfil local de HTTPS declara `deploymentStage: "homologation"`. A sessão informa esse metadado e o portal exibe uma faixa avisando que pode haver cadastros reais e dados de teste. Outros ambientes não são classificados a partir do nome da unidade. A flag de implantação também pode vir de `PORTO_DEPLOYMENT_STAGE`.
+
+Validação: suíte de 308 testes, testes de foto/monitor/acessos no navegador, 139 verificações da demonstração e onze capturas específicas com busca em 650 registros fictícios e larguras de 360 a 1.366 px. Evidências em `.porto-tooling/interface-review`. A revisão não altera usuários, setores, permissões físicas ou migrações.
+
 Data: 07/11/2026. Branch: `feat/enterprise-minimal-ui`, baseada em `06eeba5` (preparação Control iD e estabilidade PostgreSQL). O redesenho não constitui uma versão já implantada no servidor.
 
 ## Auditoria antes da implementação
@@ -20,7 +31,7 @@ As imagens de referência orientaram paleta, densidade e organização. Os núme
 
 ## Design System e componentes
 
-`app/design-system.css` concentra tokens e padrões de tela: navy `#102542`, ação `#2563EB`, fundo `#F5F7FB`, superfície branca, borda `#E2E8F0`; raios de 8/12 px, sombras discretas, espaçamentos de 4–24 px e transições de 160 ms. O cinza secundário foi ajustado de `#64748B` para `#5B6B82` para passar também sobre o fundo claro, não somente sobre branco. Verde, âmbar e vermelho têm superfícies claras e textos mais escuros para contraste.
+`app/globals.css` concentra tokens e padrões de tela: navy `#102542`, ação `#2563EB`, fundo `#F5F7FB`, superfície branca, borda `#E2E8F0`; raios de 8/12 px, sombras discretas, espaçamentos de 4–24 px e transições de 160 ms. O cinza secundário foi ajustado de `#64748B` para `#5B6B82` para passar também sobre o fundo claro, não somente sobre branco. Verde, âmbar e vermelho têm superfícies claras e textos mais escuros para contraste.
 
 Títulos 25–26 px, seções 17–20 px, texto 14 px, secundário 13 px, labels/captions 12–13 px e números 28–30 px. Inter é a primeira opção da pilha; Segoe UI é o fallback local do Windows. Não há download de fonte externa. Lucide e BrandMark existentes foram mantidos. Nenhuma biblioteca de componentes foi adicionada; `axe-core` é dependência de desenvolvimento para análise automática de acessibilidade.
 
@@ -117,8 +128,8 @@ Os builds ainda avisam sobre o tamanho de um bundle da demonstração e a classi
 
 | Arquivos | Responsabilidade |
 | --- | --- |
-| `app/app-shell.tsx`, `app/ui.tsx`, `app/design-system.css` | Novos componentes e Design System. |
-| `app/port-app.tsx`, `app/access-panels.tsx`, `app/v3-panels.tsx` | Adoção dos componentes, navegação, Central e organização dos formulários. |
+| `app/app-shell.tsx`, `app/ui.tsx`, `app/globals.css` | Novos componentes e Design System. |
+| `app/port-app.tsx`, `app/access-panels.tsx`, `app/operations-panels.tsx` | Adoção dos componentes, navegação, Central e organização dos formulários. |
 | `app/globals.css`, `app/layout.tsx` | Consolidação dos estilos e carregamento do Design System. |
 | `demo/main.tsx`, `demo/styles.css`, `demo/vite.config.ts` | Mesma interface na demonstração; banner não encobre os diálogos; prévia compatível com o endereço de produção. |
 | `scripts/check-ui.mjs`, `package.json`, `package-lock.json` | Teste visual/acessibilidade, comandos npm e dependência de teste axe. |

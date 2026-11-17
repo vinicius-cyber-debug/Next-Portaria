@@ -83,4 +83,6 @@ A recuperação completa é documentada em [PostgreSQL](POSTGRESQL.md); exige ba
 
 ## Aceite no servidor
 
+Para setores, responsáveis e integração de saída, consultar [Liberação individual de saída](LIBERACAO-SAIDA.md). A migração 006 não ativa bloqueios. O serviço usa a mesma tarefa da aplicação e permanece sem ações físicas até a configuração explícita e a homologação individual.
+
 O pacote testa HTTPS/API no próprio servidor, mas o aceite final ainda exige: acesso de outro computador na sub-rede; certificado confiável no celular; câmera QR; upload/reprodução no aparelho real; reinício do Windows com aplicação acessível **antes de qualquer login**; resultado do backup externo e recuperação. Esses ensaios não foram executados remotamente por este chat.

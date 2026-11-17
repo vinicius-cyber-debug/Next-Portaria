@@ -31,14 +31,18 @@ A rota entrega os bindings `DB` e `BUCKET` ao serviço. `lib/server.ts` valida t
 | Arquivo ou pasta | Responsabilidade |
 | --- | --- |
 | `app/layout.tsx`, `app/globals.css` | Estrutura HTML, metadados e estilos compartilhados. |
-| `app/port-app.tsx` | Composição da aplicação, sessão, navegação, formulários e estado operacional do cliente. |
+| `app/port-app.tsx` | Composição da aplicação, sessão, navegação e sincronização do estado operacional do cliente. |
+| `app/portal-dialog.tsx` | Formulários e confirmação dos comandos operacionais. |
+| `app/portal-dashboard.tsx`, `app/portal-reports.tsx`, `app/portal-administration.tsx` | Visão geral, relatórios e administração. |
+| `app/portal-shared.tsx`, `app/portal-types.ts`, `lib/operational-types.ts` | Componentes compartilhados e contratos tipados de sessão, estado, registros e respostas. |
 | `app/access-panels.tsx` | Central de acesso, pessoas, setores, indicadores e emergência. |
-| `app/v3-panels.tsx` | Portaria rápida, crachás, ocorrências, turnos, notificações, continuidade e permissões. |
-| `app/v5-panels.tsx` | Responsáveis, requisitos, troca de senha e consultas paginadas. |
+| `app/operations-panels.tsx` | Portaria rápida, crachás, ocorrências, turnos, notificações, continuidade e permissões. |
+| `app/access-support.tsx`, `app/use-paged-records.ts`, `app/use-clock.ts` | Responsáveis, requisitos, troca de senha, consultas paginadas e relógio da interface. |
 | `app/transport-notice.tsx` | Orientação quando o acesso exige HTTPS. |
 | `lib/domain.mjs` | Transições e validação do estado sem acesso ao banco; conserva regras históricas necessárias à compatibilidade de backups. |
 | `lib/physical-access.mjs` | Identidade, elegibilidade, requisitos, áreas restritas, presença e emergência. |
 | `lib/module-policy.mjs` | Política de módulos ativos, bloqueio de operações retiradas e filtragem do estado operacional. |
+| `lib/access-policy.mjs` | Matriz base de comandos por perfil, manutenção de cadastros e proteção da reclassificação de pessoas. |
 | `lib/access.mjs` | Capacidades por perfil, restrições individuais e retirada de campos sem permissão. |
 | `lib/server.ts` | Coordenação HTTP, autenticação, autorização, SQL, transações, auditoria e recursos privados. |
 | `lib/local-auth.ts` | Validação de credenciais, derivação de senha com PBKDF2, tokens e cookies de sessão. |
@@ -50,9 +54,9 @@ A rota entrega os bindings `DB` e `BUCKET` ao serviço. `lib/server.ts` valida t
 | `worker/index.ts`, `vite.config.ts` | Entrada do Worker, compilação e configuração dos bindings Cloudflare. |
 | `scripts/runtime-env.mjs`, `scripts/tool-environment.mjs` | Ambiente local das ferramentas e diretórios auxiliares em `.porto-tooling`. |
 | `db/schema.ts`, `db/guards.sql`, `drizzle/` | Esquema Drizzle, proteções de integridade, migrações D1 e metadados. |
-| `tests/` | Testes de regras, API, autenticação, sincronização e recuperação; a API é exercitada com SQLite e adaptador D1. |
+| `tests/`, `tests/support/` | Regras, API, autenticação, sincronização e recuperação; fixtures isoladas compartilhadas para SQLite/D1 e PostgreSQL real. |
 
-Os nomes `v3` e `v5` dos painéis indicam etapas de evolução do mesmo aplicativo, não aplicações ou runtimes separados.
+Os painéis têm nomes por responsabilidade. As regras de autorização não são copiadas para os componentes: a interface consulta a política compartilhada e a API revalida cada operação. Veja [QUALIDADE-SEGURANCA.md](QUALIDADE-SEGURANCA.md) para as regressões e os comandos de validação.
 
 ## Persistência e sincronização
 
@@ -83,3 +87,5 @@ O [README](../README.md) apresenta as funcionalidades. O [guia de operação loc
 ## Evolução para equipamentos físicos
 
 O [diagnóstico da fase 1](DIAGNOSTICO-EVOLUCAO.md) registra o estado verificado e as correções transacionais. O [integrador Control iD proposto](INTEGRACAO-CONTROLID.md) define o contrato de leitura, o simulador isolado e os critérios antes de conectar hardware. Cadastro, filas duráveis, comandos, biometria e callbacks reais continuam pendentes da validação de modelo/firmware; o simulador não é carregado pelo runtime operacional.
+
+O módulo [de liberação individual de saída](LIBERACAO-SAIDA.md) separa a organização por setor do controle físico. `lib/exit-access` contém política, serviço PostgreSQL, gateway restrito ao evento manual de saída e worker supervisionado pelo processo HTTPS. Uma janela é conferida a cada tentativa; ela não vira exceção semanal no equipamento. O importador `IdSecureReader` continua somente leitura. A ativação física individual depende de homologação, inclusive do comportamento sem conexão.

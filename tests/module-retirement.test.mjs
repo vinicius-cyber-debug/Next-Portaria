@@ -1,23 +1,18 @@
-import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, readdirSync } from 'node:fs';
-import { DatabaseSync } from 'node:sqlite';
-import { can, createInitialState, createDemoState, execute, validateState, monthlyPreview } from '../lib/domain.mjs';
-import { CAPABILITY_DEFINITIONS, defaultCapabilities, effectiveCapabilities, validateOverrides, visibleSnapshot } from '../lib/access.mjs';
+import test from 'node:test';
+import { CAPABILITY_DEFINITIONS,defaultCapabilities,effectiveCapabilities,validateOverrides,visibleSnapshot } from '../lib/access.mjs';
+import { can,createDemoState,createInitialState,execute,monthlyPreview,validateState } from '../lib/domain.mjs';
+import { RETIRED_CAPABILITIES,RETIRED_COLLECTIONS,RETIRED_COMMANDS } from '../lib/module-policy.mjs';
 import { PERSON_CATEGORIES } from '../lib/physical-access.mjs';
-import { RETIRED_COLLECTIONS, RETIRED_COMMANDS, RETIRED_CAPABILITIES } from '../lib/module-policy.mjs';
-import { handleApi, readSnapshot } from '../lib/server.ts';
+import { handleApi,readSnapshot } from '../lib/server.ts';
 import { testSession } from './fixture-auth.mjs';
+import { SqliteTestDatabase as D1 } from './support/sqlite-fixture.mjs';
 
 const at='2026-10-01T16:00:00.000Z';
 const actor={id:'owner',name:'Administradora',role:'admin',status:'active',email:'owner@example.test'};
 const apply=(state,type,payload={})=>execute(state,{type,payload,at},actor);
 
-class D1 {
-  constructor(){this.sqlite=new DatabaseSync(':memory:');const dir=new URL('../drizzle/',import.meta.url);for(const name of readdirSync(dir).filter(name=>name.endsWith('.sql')).sort())this.sqlite.exec(readFileSync(new URL(name,dir),'utf8'));}
-  prepare(sql){const sqlite=this.sqlite;return {sql,params:[],bind(...params){return {...this,params};},async first(){return sqlite.prepare(this.sql).get(...this.params)??null;},async all(){return {results:sqlite.prepare(this.sql).all(...this.params),success:true};},async run(){const result=sqlite.prepare(this.sql).run(...this.params);return {results:[],success:true,meta:{changes:Number(result.changes)}};}};}
-  async batch(statements){this.sqlite.exec('BEGIN');try{const result=statements.map(statement=>({results:this.sqlite.prepare(statement.sql).all(...statement.params),success:true}));this.sqlite.exec('COMMIT');return result;}catch(error){this.sqlite.exec('ROLLBACK');throw error;}}
-}
+
 let sequence=0;
 async function api(db,path,method='GET',body){
   const headers={cookie:testSession(db,actor)};

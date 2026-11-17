@@ -5,6 +5,8 @@ try {
  Set-Location -LiteralPath $active.root
  $env:PORTO_NATIVE_PROCESS_FILE=Join-Path $active.dataRoot 'run\native-process.json'
  $env:PORTO_SERVER_CONFIG=Join-Path $active.root '.porto-runtime\server.json'
+ $exitConfig=Join-Path $active.dataRoot 'integrations\exit-access.json'
+ $env:PORTO_EXIT_CONFIG=if(Test-Path -LiteralPath $exitConfig){$exitConfig}else{''}
  $env:PORTO_PORTO_ENABLED=if($active.portoEnabled -eq $true){'true'}else{'false'}
  & $active.node '--experimental-strip-types' 'scripts/server-process.mjs' *>> (Join-Path $active.dataRoot 'logs\application.log')
  exit $LASTEXITCODE

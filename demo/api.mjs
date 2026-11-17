@@ -48,6 +48,7 @@ export function createDemoApi({now=()=>new Date().toISOString(),origin=ORIGIN}={
       const rawBody=init.body??(input instanceof Request&&method!=='GET'?await input.text():undefined);
       const body=typeof rawBody==='string'&&rawBody?JSON.parse(rawBody):{};
       const path=url.pathname.slice(4),query=url.searchParams;
+      if(path.startsWith('/exit-access/'))return error('Setores e liberações de saída estão disponíveis na instalação PostgreSQL. Esta demonstração não se conecta às catracas.',503);
       if(method==='GET'&&path==='/integrations/idsecure/monitor')return json(demoMonitor(state,now(),monitorStartedAt));
       if(method==='POST'&&path==='/visitor-photos'){
         if(!(rawBody instanceof FormData))return error('Selecione a foto capturada.');const file=rawBody.get('file');if(!(file instanceof File)||file.type!=='image/jpeg')return error('Use uma foto JPEG.');

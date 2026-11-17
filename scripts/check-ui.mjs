@@ -183,18 +183,18 @@ try{
   if(width===1366||width===390)await visitorSteps(width);
   await page.getByRole('button',{name:'Registrar veículo',exact:true}).click();await check(width+'-entrada-veiculo',{a11y:width===1366||width===390});if(width===1366||width===390)await vehicleSteps(width);await page.keyboard.press('Escape');
   for(const tab of ['Emergência','Indicadores','Ler QR Code','Segurança e validade']){
-   await page.getByRole('button',{name:tab,exact:true}).click();
+   if(width<=1024)await page.getByLabel('Seção da central',{exact:true}).selectOption({'Emergência':'emergency','Indicadores':'metrics','Ler QR Code':'badges','Segurança e validade':'requirements'}[tab]);else await page.getByRole('button',{name:tab,exact:true}).click();
    await check(width+'-'+tab.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replaceAll(' ','-'),{a11y:width===1366||width===390});
   }
-  await page.getByRole('button',{name:'Operação',exact:true}).click();
-  await page.getByRole('button',{name:/Aguardando aprovação.*Solicitações pendentes/}).click();
+  if(width<=1024)await page.getByLabel('Seção da central',{exact:true}).selectOption('operation');else await page.getByRole('button',{name:'Operação',exact:true}).click();
+  await page.getByRole('button',{name:/Aguardando aprovação/}).click();
   await expect(page.getByLabel('Lista',{exact:true})).toHaveValue('pending');
   const authorize=page.locator('main').getByRole('button',{name:'Autorizar',exact:true});
   if(width>=768){await authorize.first().click();await expect(page.getByRole('dialog')).toBeVisible();await check(width+'-confirmar-autorizacao',{a11y:width===1366});
    if(width===1366){await page.getByRole('dialog').getByRole('button',{name:'Confirmar',exact:true}).click();await expect(page.getByRole('dialog')).toHaveCount(0);await expect(page.getByRole('status').filter({hasText:'Registro salvo com sucesso.'})).toBeVisible()}
    else await page.keyboard.press('Escape');
   }
-  if(width<=900){
+  if(width<=1024){
    await page.getByRole('button',{name:'Abrir menu',exact:true}).click();await expect(page.getByRole('dialog',{name:'Menu da unidade'})).toBeVisible();
    await page.getByRole('button',{name:'Fechar menu',exact:true}).focus();await page.keyboard.press('Shift+Tab');expect(await page.getByRole('dialog',{name:'Menu da unidade'}).evaluate(e=>e.contains(document.activeElement))).toBe(true);
    await page.keyboard.press('Escape');await expect(page.getByRole('button',{name:'Abrir menu',exact:true})).toBeFocused();

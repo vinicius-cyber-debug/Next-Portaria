@@ -53,4 +53,10 @@ O relatório mostra apenas contagens. A importação confirma os cadastros em tr
 
 Esta entrega não consome eventos das catracas automaticamente. Modelo, firmware, sentido físico e confirmação de passagem ainda precisam ser validados antes de mapear eventos para presença. Uma autorização liberada pelo equipamento não comprova uma passagem.
 
+### Estado do equipamento e sincronismo
+
+A lista de dispositivos pode retornar `isCurrentlyOnline` e `dateLastOnline` antigos. A tela de dispositivos do iDSecure consulta separadamente `GET /api/util/DevicesSyncStatus`: `0` significa sincronizado, `1` sincronizando, `2` falha de sincronismo e `3` coleta de registros. O leitor mantém esses estados separados; status ausente, duplicado ou desconhecido não confirma prontidão.
+
+O indicador verde de sincronismo não substitui um teste de conexão nem uma confirmação física de passagem. A prévia de horários registra explicitamente `liveConnection: not_probed` e não envia comandos. Uma consulta histórica com `isCurrentlyOnline: false`, isoladamente, também não comprova que o equipamento está desconectado.
+
 Referências oficiais: [integração iDSecure](https://www.controlid.com.br/docs/idsecure-pt/integracao/), [regras de acesso](https://www.controlid.com.br/docs/idsecure-pt/acesso/).

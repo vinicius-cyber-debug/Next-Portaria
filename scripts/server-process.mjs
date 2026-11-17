@@ -13,7 +13,9 @@ import {validateServerConfig} from '../lib/server-network.mjs';
 
 export async function startServer(config){
  const {allowed,cert,key,origin}=validateServerConfig(config);loadApplicationEnvironment();
+ if(['homologation','production'].includes(config.deploymentStage))process.env.PORTO_DEPLOYMENT_STAGE=config.deploymentStage;
  const resources=getResources();await resources.db.prepare('SELECT 1').first();
+ const stopExitWorker=await resources.exitAccess?.startWorker();
  registerNativeProcess('https',config.port);
  const child=spawn(process.execPath,['scripts/run-framework.mjs','start','--hostname','127.0.0.1','--port',String(config.uiPort)],{cwd:projectRoot,windowsHide:true,stdio:'inherit',env:{...process.env,PORTO_NATIVE_PROCESS_FILE:nativeProcessPath+'.ui'}});
  let stopping=false;
@@ -38,7 +40,7 @@ export async function startServer(config){
   }catch{if(!res.headersSent)res.writeHead(500);res.end();}
  });
  server.requestTimeout=120000;server.headersTimeout=15000;
- const shutdown=()=>{if(stopping)return;stopping=true;server.close();child.kill('SIGTERM');setTimeout(()=>process.exit(process.exitCode??0),5000).unref();};
+ const shutdown=()=>{if(stopping)return;stopping=true;server.close();child.kill('SIGTERM');void (async()=>{await stopExitWorker?.();await resources.db.close();})().finally(()=>process.exit(process.exitCode??0));setTimeout(()=>process.exit(process.exitCode??0),10000).unref();};
  for(const signal of ['SIGINT','SIGTERM'])process.on(signal,shutdown);
  child.on('error',error=>{console.error(error.message);process.exitCode=1;shutdown();});
  child.on('exit',code=>{if(!stopping){console.error('Aplicacao encerrou:',code);process.exit(1);}});

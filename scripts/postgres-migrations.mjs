@@ -6,6 +6,8 @@ export async function grantApplicationRole(pool,role='portaria_app'){
  const immutable=['porto_tabelas_tarifarias','porto_tarifas','porto_eventos','porto_comandos','porto_permanencias','porto_pagadores','porto_cobrancas','porto_pagamentos','porto_ajustes','porto_caixa_fechamentos','porto_caixa_itens'];
  const existing=(await pool.query("SELECT tablename FROM pg_tables WHERE schemaname='public' AND tablename=ANY($1::text[])",[immutable])).rows.map(row=>'"'+row.tablename+'"');
  if(existing.length)await pool.query(`REVOKE UPDATE,DELETE ON ${existing.join(',')} FROM ${name}`);
+ const exitImmutable=(await pool.query("SELECT tablename FROM pg_tables WHERE schemaname='public' AND tablename IN ('exit_events','exit_commands')")).rows.map(row=>'"'+row.tablename+'"');
+ if(exitImmutable.length)await pool.query(`REVOKE UPDATE,DELETE ON ${exitImmutable.join(',')} FROM ${name}`);
  if((await pool.query("SELECT to_regclass('public.porto_cobrancas') AS present")).rows[0].present)await pool.query(`GRANT UPDATE(status,saida_em,saida_operador_id) ON porto_permanencias TO ${name}`);
  if((await pool.query("SELECT to_regclass('public.porto_solicitacoes') AS present")).rows[0].present)await pool.query(`REVOKE DELETE ON porto_solicitacoes FROM ${name}`);
 }

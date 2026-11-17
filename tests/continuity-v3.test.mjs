@@ -1,12 +1,11 @@
-import test from 'node:test';
 import assert from 'node:assert/strict';
-import {DatabaseSync} from 'node:sqlite';
-import {readFileSync} from 'node:fs';
-import {handleContinuity} from '../lib/continuity.ts';
-import {createInitialState,execute} from '../lib/domain.mjs';
+import { readFileSync } from 'node:fs';
+import test from 'node:test';
+import { handleContinuity } from '../lib/continuity.ts';
+import { createInitialState,execute } from '../lib/domain.mjs';
+import { SqliteTestDatabase } from './support/sqlite-fixture.mjs';
 
-class LocalD1 {
-  constructor(){this.sqlite=new DatabaseSync(':memory:');this.sqlite.exec(`
+class LocalD1 extends SqliteTestDatabase {constructor(){super({initialize:sqlite=>{sqlite.exec(`
     CREATE TABLE operational_continuity_config(id TEXT PRIMARY KEY,body TEXT NOT NULL);
     CREATE TABLE operational_backup_runs(id TEXT PRIMARY KEY,created_at TEXT NOT NULL,status TEXT NOT NULL,body TEXT NOT NULL);
     CREATE TABLE operational_notifications(id TEXT PRIMARY KEY,kind TEXT NOT NULL,entity_id TEXT NOT NULL,created_at TEXT NOT NULL,body TEXT NOT NULL);
@@ -19,10 +18,7 @@ class LocalD1 {
     CREATE TABLE operational_attachments(id TEXT PRIMARY KEY,object_key TEXT NOT NULL,size INTEGER NOT NULL);
     INSERT INTO operational_meta VALUES(1,42);
     INSERT INTO operational_users VALUES('admin','admin','active'),('second-admin','admin','active');
-  `);this.sqlite.exec(readFileSync(new URL('../db/guards.sql',import.meta.url),'utf8'));}
-  prepare(sql){const owner=this;return {sql,params:[],bind(...params){return {...this,params};},async first(){return owner.sqlite.prepare(this.sql).get(...this.params)??null;},async all(){return {results:owner.sqlite.prepare(this.sql).all(...this.params),success:true};},async run(){const result=owner.sqlite.prepare(this.sql).run(...this.params);return {results:[],success:true,meta:{changes:Number(result.changes)}};}};}
-  async batch(statements){this.sqlite.exec('BEGIN');try{const result=statements.map(statement=>({results:this.sqlite.prepare(statement.sql).all(...statement.params),success:true}));this.sqlite.exec('COMMIT');return result;}catch(error){this.sqlite.exec('ROLLBACK');throw error;}}
-}
+  `);sqlite.exec(readFileSync(new URL('../db/guards.sql',import.meta.url),'utf8'));}});}}
 class PrivateBucket {
   objects=new Map();puts=0;deletes=[];fail=false;beforePut=null;beforeGet=null;
   async put(key,contents){this.puts++;if(this.beforePut)await this.beforePut();if(this.fail)throw new Error('R2 temporarily unavailable');this.objects.set(key,String(contents));return {key};}

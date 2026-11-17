@@ -1,2 +1,4 @@
 import PortApp from './port-app';
-export default function Home() { return <PortApp />; }
+export default function Home() {
+  return <PortApp />;
+}

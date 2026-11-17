@@ -1,19 +1,14 @@
-import test from 'node:test';
 import assert from 'node:assert/strict';
-import {DatabaseSync} from 'node:sqlite';
-import {readFileSync,readdirSync} from 'node:fs';
-import {IdSecureMonitor,monitorEvent,monitorTime} from '../lib/integrations/monitor.ts';
-import {IntegrationError} from '../lib/integrations/contracts.ts';
-import {handleApi} from '../lib/server.ts';
-import {testSession} from './fixture-auth.mjs';
+import test from 'node:test';
+import { IntegrationError } from '../lib/integrations/contracts.ts';
+import { IdSecureMonitor,monitorEvent,monitorTime } from '../lib/integrations/monitor.ts';
+import { handleApi } from '../lib/server.ts';
+import { testSession } from './fixture-auth.mjs';
+import { SqliteTestDatabase as D1 } from './support/sqlite-fixture.mjs';
 const raw={idLog:'9223372036854775807',idDevice:'99',idUser:'101',device:'Catraca fictícia QA',area:'Área informada QA',name:'Pessoa fictícia QA',eventCode:7,eventName:'Acesso autorizado',time:'/Date(1794248373000-0400)/',userCPF:'NAO_PERSISTIR_CPF',cardNumberStr:'NAO_PERSISTIR_CARTAO',info:'NAO_PERSISTIR_INFO',ipCamera:'NAO_PERSISTIR_CAMERA'};
 const user={id:'qa',name:'QA',role:'admin',status:'active',capabilities:{documentView:true}};
 const request=()=>new Request('https://fixture.example/api/integrations/idsecure/monitor');
-class D1{
- constructor(){this.sqlite=new DatabaseSync(':memory:');const dir=new URL('../drizzle/',import.meta.url);for(const n of readdirSync(dir).filter(n=>n.endsWith('.sql')).sort())this.sqlite.exec(readFileSync(new URL(n,dir),'utf8'));}
- prepare(sql){const sqlite=this.sqlite;return {sql,params:[],bind(...params){return {...this,params}},async first(){return sqlite.prepare(this.sql).get(...this.params)??null},async all(){return {success:true,results:sqlite.prepare(this.sql).all(...this.params)}},async run(){return {success:true,results:[],meta:{changes:Number(sqlite.prepare(this.sql).run(...this.params).changes)}}}};}
- async batch(items){this.sqlite.exec('BEGIN');try{const results=items.map(s=>({success:true,results:this.sqlite.prepare(s.sql).all(...s.params)}));this.sqlite.exec('COMMIT');return results;}catch(e){this.sqlite.exec('ROLLBACK');throw e;}}
-}
+
 function fixture(reader={sourceId:'fixture',async readMonitor(){return [raw]}},load){const db=new D1(),monitor=new IdSecureMonitor(db,'unused-private-file',load??(async()=>reader)),context={user,authorize:async()=>user};return {db,monitor,context,async read(){const r=await monitor.handle(request(),context);return r.json();}};}
 test('hora ASP.NET usa milissegundos UTC e não aplica o offset uma segunda vez',()=>{
  assert.equal(monitorTime(raw.time),new Date(1794248373000).toISOString());assert.equal(monitorTime('2026-11-01T08:00:00-04:00'),'2026-11-01T12:00:00.000Z');for(const value of ['01/11/2026 08:00','2026-11-01T08:00:00','invalid','/Date(99)/'])assert.throws(()=>monitorTime(value));
