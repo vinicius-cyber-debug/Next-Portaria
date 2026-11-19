@@ -4,13 +4,14 @@ import {randomUUID} from 'node:crypto';
 import pg from 'pg';
 import {postgresConfig} from './postgres-config.mjs';
 import {validUsername,validPassword,hashPassword} from '../lib/local-auth.ts';
+import {PASSWORD_MIN_LENGTH,PASSWORD_MAX_LENGTH} from '../lib/password-policy.mjs';
 const config=postgresConfig(),pool=new pg.Pool(config.database);
 async function secret(prompt){
  if(!input.isTTY||!input.setRawMode)throw Error('Execute em terminal interativo.');
  output.write(prompt);return new Promise((resolve,reject)=>{
   let text='';input.setRawMode(true);input.resume();
   const done=error=>{input.removeListener('data',listener);input.setRawMode(false);input.pause();output.write('\n');if(error)reject(error);else resolve(text);};
-  const listener=chunk=>{for(const key of String(chunk)){if(key==='\r'||key==='\n'){done();return;}if(key==='\u0003'){done(Error('Cadastro cancelado.'));return;}if(key==='\b'||key==='\u007f'){if(text.length){text=text.slice(0,-1);output.write('\b \b');}}else if(key>=' '&&text.length<128){text+=key;output.write('*');}}};input.on('data',listener);
+  const listener=chunk=>{for(const key of String(chunk)){if(key==='\r'||key==='\n'){done();return;}if(key==='\u0003'){done(Error('Cadastro cancelado.'));return;}if(key==='\b'||key==='\u007f'){if(text.length){text=text.slice(0,-1);output.write('\b \b');}}else if(key>=' '&&text.length<PASSWORD_MAX_LENGTH){text+=key;output.write('*');}}};input.on('data',listener);
  });
 }
 try{
@@ -21,7 +22,7 @@ try{
   const rl=createInterface({input,output});let name,username,email;
   try{name=(await rl.question('Nome completo: ')).trim();username=validUsername(await rl.question('Usuario: '));email=(await rl.question('E-mail: ')).trim().toLowerCase();}finally{rl.close();}
   if(name.length<2||name.length>150||! /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))throw Error('Nome ou e-mail invalido.');
-  const password=validPassword(await secret('Senha (minimo 12 caracteres): ')),confirmation=await secret('Confirme a senha: ');if(password!==confirmation)throw Error('As senhas sao diferentes.');
+  const password=validPassword(await secret(`Senha (minimo ${PASSWORD_MIN_LENGTH} caracteres): `)),confirmation=await secret('Confirme a senha: ');if(password!==confirmation)throw Error('As senhas sao diferentes.');
   const credential=await hashPassword(password),id='local_'+randomUUID(),now=new Date().toISOString(),auditId='audit_'+randomUUID();
   const client=await pool.connect();
   try{

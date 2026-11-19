@@ -1,6 +1,6 @@
 /** Provisionamento interativo do primeiro administrador. Nunca coloca senha em argumentos ou arquivos. */
 import { spawnSync } from 'node:child_process';
-import { randomBytes, randomUUID, pbkdf2Sync } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
 import { writeFileSync, existsSync, mkdtempSync, rmSync } from 'node:fs';
 import { resolve, join } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -8,6 +8,8 @@ import { createInterface } from 'node:readline/promises';
 import { stdin as input, stdout as output } from 'node:process';
 import { setTimeout as sleep } from 'node:timers/promises';
 import {loadApplicationEnvironment} from './postgres-config.mjs';
+import {PASSWORD_MIN_LENGTH,PASSWORD_MAX_LENGTH} from '../lib/password-policy.mjs';
+import {hashPassword} from '../lib/local-auth.ts';
 if(loadApplicationEnvironment()==='postgres'){
   await import('./create-postgres-admin.mjs');process.exit(process.exitCode??0);
 }
@@ -41,7 +43,7 @@ async function secret(prompt){
       if(key==='\r'||key==='\n'){done();return;}
       if(key==='\u0003'){done(Error('Operação cancelada.'));return;}
       if(key==='\u007f'||key==='\b'){if(data.length){data=data.slice(0,-1);output.write('\b \b');}continue;}
-      if(key>=' '&&data.length<128){data+=key;output.write('*');}
+      if(key>=' '&&data.length<PASSWORD_MAX_LENGTH){data+=key;output.write('*');}
     }};
     input.on('data',listener);
   });
@@ -60,15 +62,15 @@ try{
 }finally{rl.close();}
 if(name.length<2||name.length>150||! /^[a-z0-9][a-z0-9._-]{2,39}$/.test(username)||! /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))throw Error('Nome, usuário ou e-mail inválidos. Repita o cadastro.');
 if((await query(`SELECT id FROM operational_users WHERE email=${escapeSql(email)}`)).length)throw Error('Já existe uma conta com esse e-mail. Use outro e-mail para a conta local.');
-const password=await secret('Senha forte (mínimo 12 caracteres): ');
+const password=await secret(`Senha (mínimo ${PASSWORD_MIN_LENGTH} caracteres): `);
 const confirm=await secret('Confirme a senha: ');
-if(password.length<12||password.length>128||password!==confirm)throw Error('A senha não atende ao tamanho mínimo ou a confirmação é diferente.');
-const salt=randomBytes(16).toString('hex'),hash=pbkdf2Sync(password,Buffer.from(salt,'hex'),310000,32,'sha256').toString('hex');
+if(password.length<PASSWORD_MIN_LENGTH||password.length>PASSWORD_MAX_LENGTH||password!==confirm)throw Error('A senha não atende ao tamanho mínimo ou a confirmação é diferente.');
+const {salt,hash,iterations}=await hashPassword(password);
 const id='local_'+randomUUID(),now=new Date().toISOString(),auditId='audit_'+randomUUID();
 const event={id:auditId,at:now,actor:name,actorId:id,role:'admin',action:'LOCAL_ADMIN_BOOTSTRAP',entity:'user',entityId:id,detail:'Criação do primeiro administrador local',changes:[{kind:'user',id,before:null,after:{id,name,email,role:'admin',status:'active'}}]};
 const script=[
  `INSERT INTO operational_users(id,email,name,role,status,created_at,updated_at) VALUES (${[id,email,name,'admin','active',now,now].map(escapeSql).join(',')});`,
- `INSERT INTO operational_credentials(user_id,username,password_salt,password_hash,password_iterations,password_changed_at) VALUES (${[id,username,salt,hash].map(escapeSql).join(',')},310000,${escapeSql(now)});`,
+ `INSERT INTO operational_credentials(user_id,username,password_salt,password_hash,password_iterations,password_changed_at) VALUES (${[id,username,salt,hash].map(escapeSql).join(',')},${iterations},${escapeSql(now)});`,
  `INSERT OR IGNORE INTO operational_meta(id,revision) VALUES (1,0);`,
  `INSERT INTO operational_audit(id,at,body) VALUES (${escapeSql(auditId)},${escapeSql(now)},${escapeSql(JSON.stringify(event))});`,
  // D1 administra as transações; COMMIT/BEGIN explícitos não são aceitos pelo Wrangler/workerd.

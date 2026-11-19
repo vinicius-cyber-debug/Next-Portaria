@@ -1,6 +1,6 @@
 {
   "name": "next-portaria",
-  "version": "0.7.0",
+  "version": "0.8.0-rc.1",
   "private": true,
   "engines": {
     "node": ">=22.13.0"
@@ -21,31 +21,55 @@
     "status": "node --experimental-strip-types scripts/application.mjs status",
     "backup:full": "node --experimental-strip-types scripts/application.mjs backup",
     "start:secure": "node scripts/start-secure.mjs",
-    "lint": "eslint .",
+    "lint": "eslint . --max-warnings=0",
+    "lint:stability": "eslint lib/persistence lib/integrations lib/media.ts lib/postgres-backup.mjs scripts/simulate-access-devices.mjs tests/postgres.test.mjs tests/postgres-stability.test.mjs tests/postgres-transactions.test.mjs tests/integration-preparation.test.mjs tests/support/postgres-fixture.mjs",
     "db:generate": "drizzle-kit generate",
     "db:setup": "node --experimental-strip-types scripts/setup-database.mjs",
     "db:admin": "node --experimental-strip-types scripts/create-local-admin.mjs",
     "test": "node --experimental-strip-types --test tests/*.test.mjs",
     "test:hmr": "node tests/e2e-hmr.mjs",
+    "test:ui": "node scripts/check-ui.mjs",
+    "test:porto": "node --experimental-strip-types --test tests/porto-domain.test.mjs tests/porto-postgres.test.mjs tests/porto-finance.test.mjs",
+    "test:porto:browser": "node --experimental-strip-types tests/porto-browser.mjs",
+    "lint:porto": "eslint lib/porto app/porto-panel.tsx app/porto-shared.tsx app/porto-finance.tsx tests/porto-domain.test.mjs tests/porto-postgres.test.mjs tests/porto-finance.test.mjs tests/porto-browser.mjs scripts/postgres-migrations.mjs",
+    "lint:ui": "eslint app/ui.tsx app/app-shell.tsx app/form-steps.tsx app/access-overview.tsx scripts/check-ui.mjs",
     "package:server": "node scripts/package-server.mjs",
     "media:retention": "node --experimental-strip-types scripts/media-retention.mjs",
+    "integration:simulate": "node --experimental-strip-types scripts/simulate-access-devices.mjs",
     "check": "tsc --noEmit",
     "demo:local": "node --experimental-strip-types scripts/seed-local-demo.mjs",
+    "demo:logistics": "node --experimental-strip-types scripts/seed-logistics-demo.mjs --local",
     "dev:demo": "vite --config demo/vite.config.ts",
-    "build:demo": "vite build --config demo/vite.config.ts"
+    "build:demo": "vite build --config demo/vite.config.ts",
+    "integration:idsecure": "node --experimental-strip-types scripts/import-idsecure.mjs",
+    "integration:idsecure:credentials": "node --experimental-strip-types scripts/configure-idsecure-credentials.mjs",
+    "test:access": "node --experimental-strip-types --test tests/access-modes.test.mjs tests/idsecure.test.mjs",
+    "test:access:browser": "node --experimental-strip-types tests/access-browser.mjs",
+    "test:monitor:browser": "node --experimental-strip-types tests/turnstile-browser.mjs",
+    "demo:present": "vite preview --config demo/vite.config.ts --host 127.0.0.1 --port 4175 --strictPort",
+    "test:visitor-face:browser": "node --experimental-strip-types tests/visitor-face-browser.mjs",
+    "integration:face:plan": "node --experimental-strip-types scripts/visitor-face-plan.mjs",
+    "access:schedule:once": "node --experimental-strip-types scripts/access-schedule-worker.mjs --once",
+    "access:schedule:watch": "node --experimental-strip-types scripts/access-schedule-worker.mjs",
+    "exit:worker": "node --experimental-strip-types scripts/exit-access-worker.mjs",
+    "test:exit:browser": "node --experimental-strip-types tests/exit-browser.mjs",
+    "test:interface:browser": "node --experimental-strip-types tests/interface-browser.mjs",
+    "test:logistics:browser": "node --experimental-strip-types tests/logistics-browser.mjs",
+    "format": "prettier --write \"app/**/*.{ts,tsx,css}\" \"lib/**/*.{ts,mjs}\" \"tests/support/*.mjs\" tests/security-regressions.test.mjs",
+    "format:check": "prettier --check \"app/**/*.{ts,tsx,css}\" \"lib/**/*.{ts,mjs}\" \"tests/support/*.mjs\" tests/security-regressions.test.mjs"
   },
   "dependencies": {
     "drizzle-orm": "0.45.2",
     "lucide-react": "^1.31.0",
-    "next": "16.3.4",
+    "next": "16.4.6",
     "pg": "8.23.1",
     "qrcode": "1.5.4",
     "react": "19.3.1",
     "react-dom": "19.3.1"
   },
   "devDependencies": {
-    "@cloudflare/vite-plugin": "1.37.1",
-    "@cloudflare/workers-types": "4.20260515.1",
+    "@cloudflare/vite-plugin": "1.70.0",
+    "@cloudflare/workers-types": "5.20261117.1",
     "@playwright/test": "1.65.0",
     "@tailwindcss/postcss": "4.2.1",
     "@types/node": "22.19.19",
@@ -55,20 +79,28 @@
     "@types/react-dom": "19.2.3",
     "@vitejs/plugin-react": "6.0.2",
     "@vitejs/plugin-rsc": "0.5.39",
-    "drizzle-kit": "0.31.10",
+    "axe-core": "4.14.0",
+    "drizzle-kit": "0.31.11",
     "eslint": "9.39.4",
-    "eslint-config-next": "16.3.4",
+    "eslint-config-next": "16.4.6",
+    "prettier": "3.9.10",
     "react-server-dom-webpack": "19.3.1",
     "tailwindcss": "4.2.1",
     "typescript": "5.9.3",
-    "vinext": "1.4.4",
-    "vite": "8.3.6",
-    "wrangler": "4.92.0"
+    "vinext": "1.4.6",
+    "vite": "8.3.8",
+    "wrangler": "4.164.0"
   },
   "type": "module",
   "overrides": {
     "miniflare": {
-      "sharp": "0.35.4"
+      "sharp": "0.35.5"
+    },
+    "satori": {
+      "fflate": "0.7.5"
+    },
+    "@esbuild-kit/core-utils": {
+      "esbuild": "0.25.12"
     }
   }
 }

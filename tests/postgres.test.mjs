@@ -1,12 +1,12 @@
+import {hasPostgres,withPostgresFixture} from './support/postgres-fixture.mjs';
+import {existsSync} from 'node:fs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile,mkdir,mkdtemp,rm,writeFile} from 'node:fs/promises';
-import {existsSync} from 'node:fs';
 import {resolve,join} from 'node:path';
 import {tmpdir} from 'node:os';
 import {randomUUID,randomBytes,createHash} from 'node:crypto';
-import pg from 'pg';
-import {PostgresDatabase,postgresSql} from '../lib/persistence/postgres.ts';
+import {postgresSql} from '../lib/persistence/postgres.ts';
 import {FileObjectStore} from '../lib/storage/filesystem.ts';
 import {migratePostgres} from '../scripts/postgres-migrations.mjs';
 import {hashPassword} from '../lib/local-auth.ts';
@@ -30,22 +30,11 @@ test('conflito de transacao anterior ao comando retorna HTTP 409',async()=>{
  const response=await handleApi(new Request('http://127.0.0.1/api/state'),provider);assert.equal(response.status,409);assert.equal((await response.json()).error.code,'REVISION_CONFLICT');
 });
 
-const localPath=resolve('.porto-runtime/postgres.json');
-const supplied=process.env.PORTO_TEST_POSTGRES_CONFIG?JSON.parse(process.env.PORTO_TEST_POSTGRES_CONFIG):null;
-test('PostgreSQL real: migracoes, API, concorrencia, arquivos privados e recuperacao',{skip:!supplied&&!existsSync(localPath),timeout:180000},async t=>{
- const local=existsSync(localPath)?JSON.parse(await readFile(localPath,'utf8')):null;
- const owner=supplied??JSON.parse(await readFile(local.adminFile,'utf8'));
- const token=randomUUID().replaceAll('-',''),database='portaria_qa_'+token,role='qa_'+token;
- const control=new pg.Pool({...owner,database:'postgres'}),password='QA-'+randomBytes(20).toString('hex');
+test('PostgreSQL real: migracoes, API, concorrencia, arquivos privados e recuperacao',{skip:!hasPostgres,timeout:180000},async t=>{
  const temp=await mkdtemp(join(tmpdir(),'portaria-postgres-')),mediaRoot=join(temp,'objects');await mkdir(mediaRoot);
- const appPassword=randomBytes(32).toString('hex');
- let admin,db,visitId,attachmentId;
- try{
-  await control.query(`CREATE ROLE "${role}" LOGIN PASSWORD '${appPassword}' NOSUPERUSER NOCREATEDB NOCREATEROLE`);
-  await control.query(`CREATE DATABASE "${database}"`);admin=new pg.Pool({...owner,database});
+ try{await withPostgresFixture(async({owner:admin,db,database,role,control,token,password:appPassword,adminConfig:owner,localConfig:local})=>{
+  const password='QA-'+randomBytes(20).toString('hex');let visitId,attachmentId;
   await migratePostgres(admin);await migratePostgres(admin);
-  await admin.query(`GRANT USAGE ON SCHEMA public TO "${role}"; GRANT SELECT,INSERT,UPDATE,DELETE ON ALL TABLES IN SCHEMA public TO "${role}"; GRANT USAGE,SELECT ON ALL SEQUENCES IN SCHEMA public TO "${role}"; REVOKE UPDATE,DELETE ON operational_audit FROM "${role}"; REVOKE ALL ON portaria_migrations FROM "${role}"`);
-  db=new PostgresDatabase({...owner,database,user:role,password:appPassword,max:5});
   const bucket=new FileObjectStore(mediaRoot),media=new MediaService(db,bucket),origin='http://127.0.0.1:5199';let cookie='',incidentId;
   const request=async(path,{method='GET',body,cookie:override,headers={}}={})=>{
    const raw=body instanceof Uint8Array||body instanceof ReadableStream;
@@ -56,7 +45,8 @@ test('PostgreSQL real: migracoes, API, concorrencia, arquivos privados e recuper
   const state=async()=>(await request('/state')).data;
   const command=async(type,payload,revision)=>(await request('/commands',{method:'POST',body:{type,payload,revision:revision??(await state()).revision,idempotencyKey:randomUUID()}}));
   await t.test('migracoes sao repetiveis e a API usa papel sem privilegios administrativos',async()=>{
-   assert.equal((await admin.query('SELECT count(*) AS n FROM portaria_migrations')).rows[0].n,'3');
+   assert.equal((await admin.query('SELECT count(*) AS n FROM portaria_migrations')).rows[0].n,'7');
+   assert.equal((await admin.query("SELECT version FROM portaria_migrations WHERE version='007_fleet_media.sql'")).rows[0].version,'007_fleet_media.sql');
    assert.equal((await db.prepare('SELECT usesuper FROM pg_user WHERE usename=current_user').first()).usesuper,false);
    assert.equal((await request('/session')).status,401);
   });
@@ -191,7 +181,7 @@ test('PostgreSQL real: migracoes, API, concorrencia, arquivos privados e recuper
    const freePort=async()=>{const socket=tcpServer();await new Promise(done=>socket.listen(0,'127.0.0.1',done));const port=socket.address().port;await new Promise(done=>socket.close(done));return port;};
    const port=await freePort(),uiPort=await freePort(),configFile=join(temp,'server.json');
    await writeFile(configFile,JSON.stringify({host:'127.0.0.1',subnet:'127.0.0.0/8',port,uiPort,cert,key}));
-   const child=spawn(process.execPath,['--experimental-strip-types','scripts/server-process.mjs'],{cwd:resolve('.'),windowsHide:true,detached:process.platform!=='win32',env:{...process.env,PORTO_DB_PROVIDER:'postgres',PORTO_PG_CONFIG:JSON.stringify({...owner,database,user:role,password:appPassword}),PORTO_MEDIA_ROOT:mediaRoot,PORTO_SERVER_CONFIG:configFile,PORTO_NATIVE_PROCESS_FILE:join(temp,'gateway-process.json')},stdio:['ignore','pipe','pipe']});
+   const child=spawn(process.execPath,['--experimental-strip-types','scripts/server-process.mjs'],{cwd:resolve('.'),windowsHide:true,detached:process.platform!=='win32',env:{...process.env,PORTO_DB_PROVIDER:'postgres',PORTO_PG_CONFIG:JSON.stringify({...owner,database,user:role,password:appPassword}),PORTO_MEDIA_ROOT:mediaRoot,PORTO_IDSECURE_CONFIG:join(temp,'no-real-integration.json'),PORTO_SERVER_CONFIG:configFile,PORTO_NATIVE_PROCESS_FILE:join(temp,'gateway-process.json')},stdio:['ignore','pipe','pipe']});
    let logs='';for(const stream of [child.stdout,child.stderr])stream.on('data',d=>{logs=(logs+d).slice(-4000);});
    const ca=await readFile(cert),origin=`https://127.0.0.1:${port}`;
    const call=(path,options={},data)=>new Promise((done,fail)=>{const req=httpsRequest(origin+path,{ca,timeout:3000,checkServerIdentity:(_host,cert)=>checkServerIdentity('127.0.0.1',cert),...options},res=>{let body='';res.on('data',d=>body+=d);res.on('end',()=>done({status:res.statusCode,headers:res.headers,body}));});req.on('error',fail);req.on('timeout',()=>req.destroy(Error('Timeout')));if(data)req.write(JSON.stringify(data));req.end();});
@@ -205,6 +195,16 @@ test('PostgreSQL real: migracoes, API, concorrencia, arquivos privados e recuper
     if(process.env.PORTO_TEST_VIDEO_BROWSER==='true'){
      const {chromium,expect}=await import('@playwright/test'),browser=await chromium.launch({headless:true,...(process.platform==='win32'?{channel:'msedge'}:{})});
      try{
+      const loginContext=await browser.newContext({ignoreHTTPSErrors:true,viewport:{width:390,height:844}});
+      try{
+       const loginPage=await loginContext.newPage();await loginPage.goto(origin);
+       await expect(loginPage.getByRole('button',{name:'Entrar no sistema',exact:true})).toBeVisible();
+       await loginPage.addScriptTag({path:resolve('node_modules/axe-core/axe.min.js')});
+       const accessibility=await loginPage.evaluate(async()=>window.axe.run(document,{runOnly:{type:'tag',values:['wcag2a','wcag2aa','wcag21aa','wcag22aa']}}));
+       assert.deepEqual(accessibility.violations.map(issue=>({id:issue.id,nodes:issue.nodes.map(node=>node.target)})),[],'Login deve preservar acessibilidade em celular.');
+       assert.ok(await loginPage.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
+       if(process.platform==='win32'&&existsSync(resolve('..','NextPortaria-redesign')))await loginPage.screenshot({path:resolve('..','NextPortaria-redesign','390-login.png')});
+      }finally{await loginContext.close()}
       const context=await browser.newContext({ignoreHTTPSErrors:true,viewport:{width:1440,height:1000}});await context.addCookies([{name:'porto_session',value:login.headers['set-cookie'][0].split(';')[0].split('=')[1],url:origin,secure:true}]);
       const page=await context.newPage(),file=join(temp,'evidencia-real-qa.mp4');await writeFile(file,Buffer.concat([video,Buffer.alloc(MEDIA_LIMITS.chunk)]));
       let interrupted=false,firstPartRequests=0;
@@ -225,17 +225,20 @@ test('PostgreSQL real: migracoes, API, concorrencia, arquivos privados e recuper
    }
   });
   await t.test('backup criptografado restaura banco, imagem e midia e rejeita adulteracao',{skip:!local},async()=>{
+   const portrait=Uint8Array.from([255,216,255,192,0,17,8,1,224,2,128,3,1,17,0,2,17,0,3,17,0,255,217]),form=new FormData();form.set('file',new File([portrait],'visitante.jpg',{type:'image/jpeg'}));
+   const upload=await request('/visitor-photos',{method:'POST',body:form});assert.equal(upload.status,200,JSON.stringify(upload.data));
+   const photoVisit=await command('VISITOR_GATE_REGISTER',{name:'Visitante fotografado QA',company:'Empresa fictícia QA',purpose:'Homologação de backup da foto',host:'Contato QA',expectedAt:new Date().toISOString(),validUntil:new Date(Date.now()+3600000).toISOString(),photoAttachmentId:upload.data.attachment.id,identityConfirmed:true});assert.equal(photoVisit.status,200,JSON.stringify(photoVisit.data));
+   const photoKey=(await admin.query('SELECT object_key FROM operational_attachments WHERE id=$1',[upload.data.attachment.id])).rows[0].object_key;
    const adminFile=join(temp,'qa-admin.json');await writeFile(adminFile,JSON.stringify(owner),{mode:0o600});
    const config={...local,dataRoot:temp,adminFile,mediaRoot,database:{...owner,database,user:role,password:appPassword}};
    const destination=join(temp,'backup'),keyFile=join(temp,'recovery.key');
-   const references=Number((await admin.query("SELECT (SELECT count(*) FROM operational_attachments)+(SELECT count(*) FROM media_assets WHERE status='ready') AS n")).rows[0].n);
+   const references=Number((await admin.query("SELECT (SELECT count(*) FROM operational_attachments)+(SELECT count(*) FROM media_assets WHERE status='ready')+(SELECT count(*) FROM operational_records WHERE collection='visitors' AND body::jsonb->'visitorPhoto'->>'sha256' IS NOT NULL) AS n")).rows[0].n);
    const before=await postgresInventory(admin),backup=await createPostgresBackup({config,destination,keyFile,quiesced:true});assert.equal(backup.status,'verified');assert.equal(backup.references,references);assert.deepEqual(await postgresInventory(admin),before);
    const recoveredDatabase='portaria_recovered_'+token,recoveredMedia=join(temp,'recovered-media');
-   try{const recovered=await restorePostgresBackup({config,backupDirectory:destination,keyFile,database:recoveredDatabase,mediaRoot:recoveredMedia});assert.equal(recovered.references,references);assert.equal((await new FileObjectStore(recoveredMedia).head('media/video-qa')).size,8*1024*1024);}finally{await control.query(`DROP DATABASE IF EXISTS "${recoveredDatabase}" WITH (FORCE)`);}
+   try{const recovered=await restorePostgresBackup({config,backupDirectory:destination,keyFile,database:recoveredDatabase,mediaRoot:recoveredMedia});assert.equal(recovered.references,references);assert.equal((await new FileObjectStore(recoveredMedia).head('media/video-qa')).size,8*1024*1024);assert.equal((await new FileObjectStore(recoveredMedia).head(photoKey)).size,portrait.length);}finally{await control.query(`DROP DATABASE IF EXISTS "${recoveredDatabase}" WITH (FORCE)`);}
+   const corrupt=Uint8Array.from(portrait);corrupt[10]^=1;await bucket.put(photoKey,corrupt);try{await assert.rejects(createPostgresBackup({config,destination:join(temp,'corrupt-photo-backup'),keyFile,quiesced:true}),/integridade/i);}finally{await bucket.put(photoKey,portrait);}
    const encrypted=join(destination,'00000000.pgenc'),contents=await readFile(encrypted);contents[40]^=1;await writeFile(encrypted,contents);
    await assert.rejects(verifyPostgresBackup({config,backupDirectory:destination,keyFile}),/criptogr|recuperado|integridade/i);
   });
- }finally{
-  if(db)await db.close();if(admin)await admin.end();await control.query(`DROP DATABASE IF EXISTS "${database}" WITH (FORCE)`);await control.query(`DROP ROLE IF EXISTS "${role}"`);await control.end();await rm(temp,{recursive:true,force:true});
- }
+ });}finally{await rm(temp,{recursive:true,force:true});}
 });

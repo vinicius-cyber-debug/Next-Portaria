@@ -1,16 +1,11 @@
-import {testSession} from './fixture-auth.mjs';
-import test from 'node:test';
 import assert from 'node:assert/strict';
-import {readFileSync,readdirSync} from 'node:fs';
-import {DatabaseSync} from 'node:sqlite';
-import {handleApi} from '../lib/server.ts';
+import test from 'node:test';
+import { handleApi } from '../lib/server.ts';
+import { testSession } from './fixture-auth.mjs';
+import { SqliteTestDatabase as LocalD1 } from './support/sqlite-fixture.mjs';
 
 /** Adaptador usa SQLite real e as mesmas migrations/triggers; D1 batch tem semântica transacional. */
-class LocalD1 {
-  constructor(){this.sqlite=new DatabaseSync(':memory:');const directory=new URL('../drizzle/',import.meta.url);for(const path of readdirSync(directory).filter(p=>p.endsWith('.sql')).sort())this.sqlite.exec(readFileSync(new URL(path,directory),'utf8'));this.sqlite.exec(readFileSync(new URL('../db/guards.sql',import.meta.url),'utf8'));}
-  prepare(sql){const owner=this;return {sql,params:[],bind(...params){return {...this,params};},async first(){return owner.sqlite.prepare(this.sql).get(...this.params)??null;},async all(){return {results:owner.sqlite.prepare(this.sql).all(...this.params),success:true};},async run(){const result=owner.sqlite.prepare(this.sql).run(...this.params);return {results:[],success:true,meta:{changes:Number(result.changes)}};}};}
-  async batch(statements){if(this.beforeBatch){const hook=this.beforeBatch;this.beforeBatch=null;await hook(statements);}this.sqlite.exec('BEGIN');try{const result=statements.map(statement=>({results:this.sqlite.prepare(statement.sql).all(...statement.params),success:true}));this.sqlite.exec('COMMIT');return result;}catch(error){this.sqlite.exec('ROLLBACK');throw error;}}
-}
+
 const origin='https://porto.example.test';
 const owner={id:'owner',email:'owner@example.test',name:'Administradora'};
 function req(path,method='GET',body=undefined,extra={},cookie=''){

@@ -1,17 +1,12 @@
-import test from 'node:test';
 import assert from 'node:assert/strict';
-import {readFileSync,readdirSync} from 'node:fs';
-import {DatabaseSync} from 'node:sqlite';
-import {handleApi} from '../lib/server.ts';
-import {createDemoState} from '../lib/domain.mjs';
-import {testSession} from './fixture-auth.mjs';
+import test from 'node:test';
+import { createDemoState } from '../lib/domain.mjs';
+import { handleApi } from '../lib/server.ts';
+import { testSession } from './fixture-auth.mjs';
+import { SqliteTestDatabase as D1 } from './support/sqlite-fixture.mjs';
 
 /** SQLite real, mesmas migrações e batch atômico do contrato D1. Dados apenas em memória. */
-class D1 {
-  constructor(){this.sqlite=new DatabaseSync(':memory:');const dir=new URL('../drizzle/',import.meta.url);for(const name of readdirSync(dir).filter(p=>p.endsWith('.sql')).sort())this.sqlite.exec(readFileSync(new URL(name,dir),'utf8'));}
-  prepare(sql){const owner=this;return {sql,params:[],bind(...params){return {...this,params};},async first(){return owner.sqlite.prepare(this.sql).get(...this.params)??null;},async all(){return {results:owner.sqlite.prepare(this.sql).all(...this.params),success:true};},async run(){const r=owner.sqlite.prepare(this.sql).run(...this.params);return {results:[],success:true,meta:{changes:Number(r.changes)}};}};}
-  async batch(statements){this.sqlite.exec('BEGIN');try{const result=statements.map(s=>({results:this.sqlite.prepare(s.sql).all(...s.params),success:true}));this.sqlite.exec('COMMIT');return result;}catch(error){this.sqlite.exec('ROLLBACK');throw error;}}
-}
+
 const origin='https://porto.example.test',owner={id:'access-owner',name:'Administradora fictícia',email:'access-owner@example.test'};
 let sequence=0;
 async function call(db,path,method='GET',body,user=owner,base=origin,extra={},resources={}){
