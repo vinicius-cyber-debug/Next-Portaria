@@ -38,6 +38,7 @@ import { CentralAccess } from './access-panels';
 import { canDecide, PasswordPanel } from './access-support';
 import { AppShell } from './app-shell';
 import { BrandMark } from './brand-mark';
+import { LogisticsPanel } from './logistics-panel';
 import { allowed, capability, IncidentsAndShifts, NotificationsPanel } from './operations-panels';
 import { Administration } from './portal-administration';
 import { Dashboard } from './portal-dashboard';
@@ -451,6 +452,8 @@ export default function PortApp() {
     'quickgate',
     'visitors',
     'vehicles',
+    'fleet',
+    'materials',
     'incidents',
     'notifications',
     'masters',
@@ -834,6 +837,16 @@ export default function PortApp() {
                 ) : null}
               </>
             }
+          />
+        )}
+        {(page === 'fleet' || page === 'materials') && (
+          <LogisticsPanel
+            key={page}
+            mode={page === 'fleet' ? 'fleet' : 'materials'}
+            state={state}
+            user={user!}
+            run={command}
+            reload={loadState}
           />
         )}
         {page === 'porto' && portoEnabled && (

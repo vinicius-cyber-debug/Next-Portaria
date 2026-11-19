@@ -52,6 +52,8 @@ export type Page =
   | 'notifications'
   | 'visitors'
   | 'vehicles'
+  | 'fleet'
+  | 'materials'
   | 'masters'
   | 'reports'
   | 'audit'
@@ -149,6 +151,16 @@ export const names: Record<Page, { title: string; sub: string; icon: typeof Anch
     title: 'Veículos',
     sub: 'Entradas, saídas e permanência na unidade.',
     icon: Truck,
+  },
+  fleet: {
+    title: 'Frota própria',
+    sub: 'Veículos da empresa, saídas, retornos e vistorias.',
+    icon: Truck,
+  },
+  materials: {
+    title: 'Saída de materiais',
+    sub: 'Materiais, responsáveis e número da nota fiscal.',
+    icon: FileText,
   },
   masters: {
     title: 'Cadastros',
@@ -277,6 +289,10 @@ export function actionLabel(t: string) {
     VISITOR_CHECKOUT: 'Saída de visitante',
     VEHICLE_ENTER: 'Entrada de veículo',
     VEHICLE_EXIT: 'Saída de veículo',
+    FLEET_VEHICLE_SAVE: 'Veículo da empresa cadastrado',
+    FLEET_DEPART: 'Saída da frota registrada',
+    FLEET_RETURN: 'Retorno da frota registrado',
+    MATERIAL_EXIT_CREATE: 'Saída de material registrada',
     STAY_OPEN: 'Abertura de atracação',
     STAY_CLOSE: 'Encerramento de atracação',
     SETTINGS_UPDATE: 'Configuração alterada',

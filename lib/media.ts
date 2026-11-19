@@ -34,6 +34,15 @@ class MediaError extends Error {
 const fail = (message: string, status = 400): never => {
   throw new MediaError(message, status);
 };
+function mediaTarget(collection: unknown, phase: unknown) {
+  if (collection === undefined || collection === null || collection === 'incidents') {
+    if (phase != null && phase !== 'incident') fail('Etapa de mídia inválida.');
+    return { collection: 'incidents', phase: 'incident' };
+  }
+  if (collection === 'fleetTrips' && (phase === 'departure' || phase === 'return'))
+    return { collection, phase };
+  return fail('Selecione uma ocorrência ou uma etapa válida da vistoria.');
+}
 function permission(user: MediaUser, write = false) {
   if (
     user.status !== 'active' ||
@@ -159,9 +168,34 @@ export class MediaService {
       )
     ).rows[0];
     if (!row || row.created_by !== user.id) fail('Envio não encontrado.', 404);
+    await this.record(client, row.collection, row.phase, row.record_id, open);
     if (open && (row.status !== 'uploading' || new Date(row.expires_at).getTime() <= Date.now()))
       fail('Este envio encerrou ou venceu. Inicie outro envio.', 409);
     return row;
+  }
+  private async record(
+    client: Pick<PoolClient, 'query'>,
+    collection: string,
+    phase: string,
+    id: string,
+    write = false,
+  ) {
+    const target = mediaTarget(collection, phase);
+    const row = (
+      await client.query('SELECT body FROM operational_records WHERE collection=$1 AND id=$2', [
+        target.collection,
+        id,
+      ])
+    ).rows[0];
+    if (!row) fail('Registro da ocorrência ou viagem não encontrado.', 404);
+    if (write && target.collection === 'fleetTrips') {
+      const trip = typeof row.body === 'string' ? JSON.parse(row.body) : row.body;
+      if (
+        (target.phase === 'departure' && trip.status !== 'out') ||
+        (target.phase === 'return' && trip.status !== 'returned')
+      )
+        fail('A etapa da vistoria não está aberta para novos arquivos.', 409);
+    }
   }
   async handle(request: Request, context: MediaContext): Promise<Response> {
     try {
@@ -204,12 +238,17 @@ export class MediaService {
         return json(await this.runRetention(context));
       }
       if (path === 'records' && method === 'GET') {
-        const recordId = url.searchParams.get('id');
-        if (!recordId) fail('Selecione uma ocorrência.');
+        const recordId = url.searchParams.get('id') ?? '';
+        const target = mediaTarget(
+          url.searchParams.get('recordCollection'),
+          url.searchParams.get('phase'),
+        );
+        if (!recordId) fail('Selecione uma ocorrência ou viagem.');
+        await this.record(this.db.pool, target.collection, target.phase, recordId);
         const rows = (
           await this.db.pool.query(
-            'SELECT a.id,a.original_name AS name,a.mime_type AS type,a.size_bytes AS size,a.created_at AS "createdAt",a.expires_at AS "expiresAt" FROM media_assets a JOIN media_links l ON l.asset_id=a.id WHERE l.collection=\'incidents\' AND l.record_id=$1 AND a.status=\'ready\' AND (a.expires_at IS NULL OR a.expires_at>now()) ORDER BY a.created_at',
-            [recordId],
+            'SELECT a.id,a.original_name AS name,a.mime_type AS type,a.size_bytes AS size,a.created_at AS "createdAt",a.expires_at AS "expiresAt" FROM media_assets a JOIN media_links l ON l.asset_id=a.id WHERE l.collection=$2 AND l.record_id=$1 AND l.phase=$3 AND a.status=\'ready\' AND (a.expires_at IS NULL OR a.expires_at>now()) ORDER BY a.created_at',
+            [recordId, target.collection, target.phase],
           )
         ).rows;
         return json({ assets: rows });
@@ -222,7 +261,8 @@ export class MediaService {
           name = String(data.name ?? '')
             .replace(/[\\/\x00-\x1f"<>]/g, '_')
             .slice(0, 150),
-          record = String(data.recordId ?? '');
+          record = String(data.recordId ?? ''),
+          target = mediaTarget(data.recordCollection, data.phase);
         if (
           !types.has(String(type)) ||
           !name ||
@@ -236,15 +276,7 @@ export class MediaService {
           context,
           (u) => permission(u, true),
           async (client, user) => {
-            if (
-              !(
-                await client.query(
-                  "SELECT id FROM operational_records WHERE collection='incidents' AND id=$1",
-                  [record],
-                )
-              ).rowCount
-            )
-              fail('Ocorrência não encontrada.', 404);
+            await this.record(client, target.collection, target.phase, record, true);
             if (
               Number(
                 (
@@ -260,13 +292,13 @@ export class MediaService {
               Number(
                 (
                   await client.query(
-                    "SELECT count(*) AS n FROM media_links l JOIN media_assets a ON a.id=l.asset_id WHERE l.collection='incidents' AND l.record_id=$1 AND a.status NOT IN ('deleted','failed')",
-                    [record],
+                    "SELECT count(*) AS n FROM media_links l JOIN media_assets a ON a.id=l.asset_id WHERE l.collection=$2 AND l.record_id=$1 AND a.status NOT IN ('deleted','failed')",
+                    [record, target.collection],
                   )
                 ).rows[0].n,
               ) >= MEDIA_LIMITS.perRecord
             )
-              fail('Limite de 20 arquivos nesta ocorrência.', 409);
+              fail('Limite de 20 arquivos neste registro, incluindo saída e retorno.', 409);
             const used = Number(
               (
                 await client.query(
@@ -283,13 +315,22 @@ export class MediaService {
               [assetId, 'media/' + assetId, name, type, size, user.id],
             );
             await client.query(
-              "INSERT INTO media_links(asset_id,collection,record_id) VALUES($1,'incidents',$2)",
-              [assetId, record],
+              'INSERT INTO media_links(asset_id,collection,record_id,phase) VALUES($1,$2,$3,$4)',
+              [assetId, target.collection, record, target.phase],
             );
             const row = (
               await client.query(
-                "INSERT INTO media_uploads(id,asset_id,created_by,record_id,total_size,chunk_size,status) VALUES($1,$2,$3,$4,$5,$6,'uploading') RETURNING expires_at",
-                [id, assetId, user.id, record, size, MEDIA_LIMITS.chunk],
+                "INSERT INTO media_uploads(id,asset_id,created_by,record_id,total_size,chunk_size,status,collection,phase) VALUES($1,$2,$3,$4,$5,$6,'uploading',$7,$8) RETURNING expires_at",
+                [
+                  id,
+                  assetId,
+                  user.id,
+                  record,
+                  size,
+                  MEDIA_LIMITS.chunk,
+                  target.collection,
+                  target.phase,
+                ],
               )
             ).rows[0];
             await this.audit(client, user, 'MEDIA_UPLOAD_START', assetId, {
@@ -297,6 +338,8 @@ export class MediaService {
               size,
               type,
               recordId: record,
+              recordCollection: target.collection,
+              phase: target.phase,
             });
             return { id, assetId, chunkSize: MEDIA_LIMITS.chunk, expiresAt: row.expires_at };
           },
@@ -305,11 +348,21 @@ export class MediaService {
       }
       if (path === 'uploads' && method === 'GET') {
         permission(context.user, true);
+        const target = mediaTarget(
+          url.searchParams.get('recordCollection'),
+          url.searchParams.get('phase'),
+        );
+        await this.record(
+          this.db.pool,
+          target.collection,
+          target.phase,
+          url.searchParams.get('recordId') ?? '',
+        );
         return json({
           uploads: (
             await this.db.pool.query(
-              "SELECT u.id,u.total_size AS size,u.expires_at AS \"expiresAt\",a.original_name AS name FROM media_uploads u JOIN media_assets a ON a.id=u.asset_id WHERE u.created_by=$1 AND u.record_id=$2 AND u.status IN ('uploading','processing') AND u.expires_at>now() ORDER BY u.created_at",
-              [context.user.id, url.searchParams.get('recordId')],
+              "SELECT u.id,u.total_size AS size,u.expires_at AS \"expiresAt\",a.original_name AS name FROM media_uploads u JOIN media_assets a ON a.id=u.asset_id WHERE u.created_by=$1 AND u.record_id=$2 AND u.collection=$3 AND u.phase=$4 AND u.status IN ('uploading','processing') AND u.expires_at>now() ORDER BY u.created_at",
+              [context.user.id, url.searchParams.get('recordId'), target.collection, target.phase],
             )
           ).rows,
         });
@@ -334,6 +387,8 @@ export class MediaService {
                   type: row.mime_type,
                   name: row.original_name,
                   recordId: row.record_id,
+                  recordCollection: row.collection,
+                  phase: row.phase,
                   chunkSize: row.chunk_size,
                   expiresAt: row.expires_at,
                   parts: (
@@ -436,6 +491,7 @@ export class MediaService {
             async (client, user) => {
               const row = await this.upload(client, id, user);
               if (row.status === 'completed') return { row, parts: null };
+              await this.record(client, row.collection, row.phase, row.record_id, true);
               if (
                 new Date(row.expires_at).getTime() <= Date.now() ||
                 !['uploading', 'processing'].includes(row.status)
@@ -476,6 +532,7 @@ export class MediaService {
               (u) => permission(u, true),
               async (client, user) => {
                 const fresh = await this.upload(client, id, user);
+                await this.record(client, fresh.collection, fresh.phase, fresh.record_id, true);
                 if (fresh.lease !== lease || fresh.status !== 'processing')
                   fail('A conclusão foi cancelada ou substituída.', 409);
                 await client.query(

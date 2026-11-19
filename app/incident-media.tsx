@@ -13,12 +13,16 @@ type Session = {
   size?: number;
   type?: string;
   recordId?: string;
+  recordCollection?: string;
+  phase?: string;
   chunkSize: number;
   expiresAt: string;
   parts: { index: number; sha256: string }[];
 };
 type Props = {
   recordId: string;
+  recordCollection?: 'incidents' | 'fleetTrips';
+  phase?: 'departure' | 'return';
   userId: string;
   canUpload: boolean;
   isAdmin: boolean;
@@ -39,7 +43,20 @@ const sha = async (bytes: ArrayBuffer) =>
   Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)), (b) =>
     b.toString(16).padStart(2, '0'),
   ).join('');
-export default function IncidentMedia({ recordId, userId, canUpload, isAdmin, changed }: Props) {
+export default function IncidentMedia({
+  recordId,
+  recordCollection = 'incidents',
+  phase,
+  userId,
+  canUpload,
+  isAdmin,
+  changed,
+}: Props) {
+  const target = recordCollection === 'fleetTrips' ? { recordCollection, phase } : {};
+  const targetQuery =
+    recordCollection === 'fleetTrips'
+      ? '&recordCollection=fleetTrips&phase=' + encodeURIComponent(phase ?? '')
+      : '';
   const [assets, setAssets] = useState<Asset[]>([]),
     [pending, setPending] = useState<Upload[]>([]),
     [file, setFile] = useState<File | null>(null),
@@ -51,14 +68,18 @@ export default function IncidentMedia({ recordId, userId, canUpload, isAdmin, ch
     [retention, setRetention] = useState(''),
     [policyOpen, setPolicyOpen] = useState(false);
   const abort = useRef<AbortController | null>(null),
-    key = `portaria-upload:${userId}:${recordId}`;
+    key =
+      `portaria-upload:${userId}:${recordId}` +
+      (recordCollection === 'fleetTrips' ? ':' + phase : '');
   const load = useCallback(async () => {
     try {
       const [list, policy, uploads] = await Promise.all([
-        api<{ assets: Asset[] }>('records?id=' + encodeURIComponent(recordId)),
+        api<{ assets: Asset[] }>('records?id=' + encodeURIComponent(recordId) + targetQuery),
         api<{ retentionDays: number | null }>('policy'),
         canUpload
-          ? api<{ uploads: Upload[] }>('uploads?recordId=' + encodeURIComponent(recordId))
+          ? api<{ uploads: Upload[] }>(
+              'uploads?recordId=' + encodeURIComponent(recordId) + targetQuery,
+            )
           : Promise.resolve({ uploads: [] }),
       ]);
       setAssets(list.assets);
@@ -69,9 +90,14 @@ export default function IncidentMedia({ recordId, userId, canUpload, isAdmin, ch
       setAvailable(false);
       setError(e instanceof Error ? e.message : 'Arquivos indisponíveis.');
     }
-  }, [recordId, canUpload]);
+  }, [recordId, canUpload, targetQuery]);
   useEffect(() => {
-    const timer = setTimeout(() => void load(), 0);
+    const timer = setTimeout(() => {
+      setAssets([]);
+      setPending([]);
+      setAvailable(null);
+      void load();
+    }, 0);
     return () => {
       clearTimeout(timer);
       abort.current?.abort();
@@ -114,7 +140,7 @@ export default function IncidentMedia({ recordId, userId, canUpload, isAdmin, ch
       if (!session) {
         session = await api<Session>(
           'uploads',
-          send({ recordId, name: file.name, type: file.type, size: file.size }),
+          send({ recordId, ...target, name: file.name, type: file.type, size: file.size }),
         );
         try {
           localStorage.setItem(key, JSON.stringify({ id: session.id, fingerprint }));
@@ -125,7 +151,11 @@ export default function IncidentMedia({ recordId, userId, canUpload, isAdmin, ch
       }
       if (
         session.size !== undefined &&
-        (session.size !== file.size || session.type !== file.type || session.recordId !== recordId)
+        (session.size !== file.size ||
+          session.type !== file.type ||
+          session.recordId !== recordId ||
+          (session.recordCollection ?? 'incidents') !== recordCollection ||
+          (recordCollection === 'fleetTrips' && session.phase !== phase))
       )
         throw Error('O arquivo selecionado não corresponde ao envio pendente.');
       const existing = new Map<number, { sha256: string }>(
@@ -187,10 +217,20 @@ export default function IncidentMedia({ recordId, userId, canUpload, isAdmin, ch
       </p>
     );
   return (
-    <section className="v3-spaced" aria-label="Fotos e vídeos da ocorrência">
+    <section
+      className="v3-spaced"
+      aria-label={
+        recordCollection === 'fleetTrips'
+          ? 'Fotos e vídeos da vistoria de ' + (phase === 'return' ? 'retorno' : 'saída')
+          : 'Fotos e vídeos da ocorrência'
+      }
+    >
       <h3>Fotos e vídeos</h3>
       <p className="field-hint">
-        Acesso privado. MP4 e WebM até 256 MiB; imagens até 10 MiB. Até 20 arquivos por ocorrência.
+        Acesso privado. MP4 e WebM até 256 MiB; imagens até 10 MiB.{' '}
+        {recordCollection === 'fleetTrips'
+          ? 'Até 20 arquivos por viagem, somando saída e retorno.'
+          : 'Até 20 arquivos por ocorrência.'}
         A reprodução depende do codec aceito pelo aparelho.
       </p>
       {assets.map((asset) => (
@@ -297,7 +337,7 @@ export default function IncidentMedia({ recordId, userId, canUpload, isAdmin, ch
           ))}
         </div>
       )}
-      {isAdmin && (
+      {isAdmin && recordCollection === 'incidents' && (
         <details
           open={policyOpen}
           onToggle={(e) => setPolicyOpen(e.currentTarget.open)}

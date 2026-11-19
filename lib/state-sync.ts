@@ -310,7 +310,10 @@ export async function pagedRecords(db: D1Database, user: SessionUser, query: URL
       'action',
       'actor',
       'registration',
-      ...(user.capabilities?.documentView ? ['documentLast4'] : []),
+      'description',
+      'destination',
+      'responsible',
+      ...(user.capabilities?.documentView ? ['documentLast4', 'invoiceNumber'] : []),
     ];
     where.push(
       `instr(lower(${fields.map((f) => `COALESCE(json_extract(body,'$.${f}'),'')`).join("||' '||")}),lower(?))>0`,
@@ -331,6 +334,8 @@ export async function pagedRecords(db: D1Database, user: SessionUser, query: URL
       audit: 'at',
       accessCorrections: 'createdAt',
       emergencyRollCalls: 'startedAt',
+      fleetTrips: 'departedAt',
+      materialExits: 'createdAt',
     },
     timeField = timeFields[collection] ?? 'updatedAt';
   const from = dateValue(query.get('from')),

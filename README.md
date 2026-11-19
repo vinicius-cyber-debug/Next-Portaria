@@ -85,6 +85,7 @@ A aplicação PostgreSQL local abre em `http://127.0.0.1:5180`; o modo legado us
 - [PostgreSQL e armazenamento privado](docs/POSTGRESQL.md) — migração, diretórios permanentes, backup conjunto e estrutura para mídias.
 - [Implantação no servidor](docs/IMPLANTACAO-SERVIDOR.md) — releases, HTTPS, execução sem login, backup externo e aceite.
 - [Fotos e vídeos](docs/MIDIAS.md) — envio com retomada, limites, reprodução e retenção.
+- [Frota própria e saída de materiais](docs/FROTA-MATERIAIS.md) — nota fiscal, saídas, retornos, quilometragem e vistorias com fotos e vídeos.
 - [Diagnóstico da evolução](docs/DIAGNOSTICO-EVOLUCAO.md) — estabilidade PostgreSQL, cobertura e limites verificados.
 - [Preparação Control iD](docs/INTEGRACAO-CONTROLID.md) — arquitetura e simulador; conexão real aguarda modelo, firmware e validação em bancada.
 - [Operação local](docs/OPERACAO-LOCAL.md) — instalação, usuários, rede, backup e problemas comuns.

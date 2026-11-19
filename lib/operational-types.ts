@@ -109,6 +109,22 @@ export interface OperationalRecord {
   capabilities?: Capabilities;
   plate: string;
   driver: string;
+  ownership?: string;
+  initialOdometerKm?: number;
+  currentOdometerKm?: number;
+  fleetId?: string;
+  vehicleName?: string;
+  destination?: string;
+  odometerOut?: number;
+  odometerIn?: number | null;
+  distanceKm?: number | null;
+  departedAt?: string;
+  returnedAt?: string | null;
+  conditionOut?: string;
+  conditionIn?: string;
+  quantity?: string;
+  invoiceNumber?: string;
+  vehiclePlate?: string;
   vesselName: string;
   client: string;
   changes?: AuditChange[];
@@ -158,6 +174,8 @@ export type CollectionName =
   | 'charges'
   | 'people'
   | 'fleet'
+  | 'fleetTrips'
+  | 'materialExits'
   | 'vessels'
   | 'companies'
   | 'tariffHistory'

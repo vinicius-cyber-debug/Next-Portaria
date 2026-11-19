@@ -116,6 +116,8 @@ jobs:
         run: npm run test:exit:browser
       - name: Verify interface freshness, person search and responsive navigation
         run: npm run test:interface:browser
+      - name: Verify company fleet, inspection media and material invoice
+        run: npm run test:logistics:browser
       - name: Save PostgreSQL browser evidence
         if: always()
         uses: actions/upload-artifact@v6
@@ -128,6 +130,7 @@ jobs:
             .porto-tooling/visitor-face-review
             .porto-tooling/exit-review
             .porto-tooling/interface-review
+            .porto-tooling/logistics-browser
       - name: Verify private video playback in browser
         run: node --experimental-strip-types --test tests/postgres.test.mjs
         env:
