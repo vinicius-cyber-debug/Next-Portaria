@@ -50,11 +50,13 @@ test('administrador cria usuário, redefine senha e invalida sessões anteriores
  const {db,password}=await setup();const admin=await login(db,'admin',password);const adminCookie=cookieOf(admin.cookie);
  const create=await call(db,'/api/users',{action:'create_local',username:'portaria01',name:'Operador Portaria',email:'portaria@example.test',role:'gate',password:'Porto!82',idempotencyKey:'create-portal-001'},adminCookie);
  assert.equal(create.status,200);assert.equal(create.data.result.username,'portaria01');assert.ok(!JSON.stringify(create.data).includes('Porto!82'));
+ assert.equal(db.sqlite.prepare('SELECT password_iterations FROM operational_credentials WHERE user_id=?').get(create.data.result.id).password_iterations,600000);
  const badDuplicate=await call(db,'/api/users',{action:'create_local',username:'portaria01',name:'Duplicado',email:'duplicado@example.test',role:'gate',password:'Porto!82',idempotencyKey:'create-portal-002'},adminCookie);assert.equal(badDuplicate.status,409);
  const gate=await login(db,'portaria01','Porto!82');assert.equal(gate.status,200);
  assert.equal((await call(db,'/api/session',undefined,cookieOf(gate.cookie))).data.user.role,'gate');
  assert.equal((await call(db,'/api/users',undefined,cookieOf(gate.cookie))).status,403);
  const reset=await call(db,'/api/users',{action:'reset_password',id:create.data.result.id,password:'Nova!823',idempotencyKey:'reset-portal-001'},adminCookie);assert.equal(reset.status,200);
+ assert.equal(db.sqlite.prepare('SELECT password_iterations FROM operational_credentials WHERE user_id=?').get(create.data.result.id).password_iterations,600000);
  assert.equal((await call(db,'/api/session',undefined,cookieOf(gate.cookie))).status,401);
  assert.equal((await login(db,'portaria01','Porto!82')).status,401);
  assert.equal((await login(db,'portaria01','Nova!823')).status,200);

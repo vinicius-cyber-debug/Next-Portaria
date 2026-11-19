@@ -1,7 +1,8 @@
 /** Autenticação de usuários locais. Nunca confia em cabeçalhos de identidade do navegador. */
 import { PASSWORD_MIN_LENGTH, PASSWORD_MAX_LENGTH } from './password-policy.mjs';
 export const AUTH_COOKIE = 'porto_session';
-export const PASSWORD_ITERATIONS = 310_000;
+export const PASSWORD_ITERATIONS = 600_000;
+export const LEGACY_PASSWORD_ITERATIONS = 310_000;
 export const SESSION_HOURS = 8;
 const encoder = new TextEncoder();
 const hex = (bytes: Uint8Array) =>
@@ -22,28 +23,45 @@ export function validPassword(value: unknown): string {
     throw Error(`A senha deve ter de ${PASSWORD_MIN_LENGTH} a ${PASSWORD_MAX_LENGTH} caracteres.`);
   return value;
 }
-export async function hashPassword(password: string, salt?: string) {
+function supportedIterations(value: unknown): value is number {
+  return value === PASSWORD_ITERATIONS || value === LEGACY_PASSWORD_ITERATIONS;
+}
+async function derivePassword(password: string, salt: string, iterations: number) {
   validPassword(password);
-  const randomSalt = salt ?? hex(crypto.getRandomValues(new Uint8Array(16)));
-  if (!/^[a-f0-9]{32}$/.test(randomSalt)) throw Error('Salt inválido.');
+  if (typeof salt !== 'string' || !/^[a-f0-9]{32}$/.test(salt)) throw Error('Salt inválido.');
+  if (!supportedIterations(iterations)) throw Error('Custo de senha não suportado.');
   const key = await crypto.subtle.importKey('raw', encoder.encode(password), 'PBKDF2', false, [
     'deriveBits',
   ]);
   const bits = await crypto.subtle.deriveBits(
-    { name: 'PBKDF2', salt: fromHex(randomSalt), iterations: PASSWORD_ITERATIONS, hash: 'SHA-256' },
+    { name: 'PBKDF2', salt: fromHex(salt), iterations, hash: 'SHA-256' },
     key,
     256,
   );
-  return { salt: randomSalt, hash: hex(new Uint8Array(bits)), iterations: PASSWORD_ITERATIONS };
+  return { salt, hash: hex(new Uint8Array(bits)), iterations };
 }
-export async function verifyPassword(password: string, salt: string, storedHash: string) {
+export async function hashPassword(password: string, salt?: string) {
+  return derivePassword(
+    password,
+    salt ?? hex(crypto.getRandomValues(new Uint8Array(16))),
+    PASSWORD_ITERATIONS,
+  );
+}
+export async function verifyPassword(
+  password: string,
+  salt: string,
+  storedHash: string,
+  iterations: number = PASSWORD_ITERATIONS,
+) {
   if (
     typeof password !== 'string' ||
     password.length > PASSWORD_MAX_LENGTH ||
-    !/^[a-f0-9]{64}$/.test(storedHash)
+    typeof storedHash !== 'string' ||
+    !/^[a-f0-9]{64}$/.test(storedHash) ||
+    !supportedIterations(iterations)
   )
     return false;
-  const result = await hashPassword(password, salt).catch(() => null);
+  const result = await derivePassword(password, salt, iterations).catch(() => null);
   if (!result) return false;
   const expected = fromHex(storedHash),
     actual = fromHex(result.hash);

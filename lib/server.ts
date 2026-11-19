@@ -308,7 +308,8 @@ async function logIn(request: Request, db: D1Database) {
   const account = await statement(
     db,
     `SELECT c.user_id AS id,c.password_salt AS salt,c.password_hash AS hash,c.password_iterations AS iterations,
-    c.failed_attempts AS failures,c.locked_until AS lockedUntil,c.must_change_password AS mustChangePassword,u.status
+    c.failed_attempts AS failures,c.locked_until AS lockedUntil,c.must_change_password AS mustChangePassword,
+    c.password_changed_at AS passwordChangedAt,u.updated_at AS userUpdatedAt,u.status
     FROM operational_credentials c JOIN operational_users u ON u.id=c.user_id WHERE c.username=?`,
     username,
   ).first<{
@@ -320,6 +321,8 @@ async function logIn(request: Request, db: D1Database) {
     lockedUntil: string | null;
     status: string;
     mustChangePassword: number;
+    passwordChangedAt: string;
+    userUpdatedAt: string;
   }>();
   const now = new Date();
   if (!account) {
@@ -331,9 +334,7 @@ async function logIn(request: Request, db: D1Database) {
       'Conta temporariamente bloqueada. Tente novamente em 15 minutos.',
       429,
     );
-  const valid =
-    account.iterations === PASSWORD_ITERATIONS &&
-    (await verifyPassword(password, account.salt, account.hash));
+  const valid = await verifyPassword(password, account.salt, account.hash, account.iterations);
   if (!valid) {
     const until = new Date(now.getTime() + 15 * 60_000).toISOString();
     await statement(
@@ -353,33 +354,53 @@ async function logIn(request: Request, db: D1Database) {
       'Sua conta está pendente ou desativada. Consulte o administrador.',
       403,
     );
-  const token = sessionToken(),
+  // Upgrading the derivation cost does not change the password or its age. The
+  // compare-and-swap below prevents a stale verification overwriting a reset.
+  const credential =
+      account.iterations < PASSWORD_ITERATIONS
+        ? await hashPassword(password)
+        : { salt: account.salt, hash: account.hash, iterations: account.iterations },
+    token = sessionToken(),
     digest = await tokenHash(token),
     expires = new Date(now.getTime() + SESSION_HOURS * 3600_000).toISOString();
   const authenticated = await db.batch([
+    // Administrative mutations take this same lock before resetting credentials
+    // or revoking sessions. Keep the operational revision unchanged on login.
+    statement(db, 'UPDATE operational_meta SET revision=revision WHERE id=1'),
     statement(
       db,
-      'UPDATE operational_credentials SET failed_attempts=0,locked_until=NULL WHERE user_id=? AND password_hash=? AND password_salt=? AND (locked_until IS NULL OR locked_until<=?)',
-      account.id,
-      account.hash,
-      account.salt,
-      now.toISOString(),
-    ),
-    statement(
-      db,
-      `INSERT INTO operational_sessions(token_hash,user_id,created_at,expires_at) SELECT ?,c.user_id,?,? FROM operational_credentials c JOIN operational_users u ON u.id=c.user_id WHERE c.user_id=? AND c.password_hash=? AND c.password_salt=? AND c.password_iterations=? AND u.status='active' AND (c.locked_until IS NULL OR c.locked_until<=?) RETURNING token_hash`,
-      digest,
-      now.toISOString(),
-      expires,
+      `UPDATE operational_credentials SET password_salt=?,password_hash=?,password_iterations=?,failed_attempts=0,locked_until=NULL
+       WHERE user_id=? AND password_hash=? AND password_salt=? AND password_iterations=? AND password_changed_at=?
+       AND (locked_until IS NULL OR locked_until<=?)
+       AND EXISTS(SELECT 1 FROM operational_users u WHERE u.id=operational_credentials.user_id AND u.status='active' AND u.updated_at=?)`,
+      credential.salt,
+      credential.hash,
+      credential.iterations,
       account.id,
       account.hash,
       account.salt,
       account.iterations,
+      account.passwordChangedAt,
+      now.toISOString(),
+      account.userUpdatedAt,
+    ),
+    statement(
+      db,
+      `INSERT INTO operational_sessions(token_hash,user_id,created_at,expires_at) SELECT ?,c.user_id,?,? FROM operational_credentials c JOIN operational_users u ON u.id=c.user_id WHERE c.user_id=? AND c.password_hash=? AND c.password_salt=? AND c.password_iterations=? AND c.password_changed_at=? AND u.status='active' AND u.updated_at=? AND (c.locked_until IS NULL OR c.locked_until<=?) RETURNING token_hash`,
+      digest,
+      now.toISOString(),
+      expires,
+      account.id,
+      credential.hash,
+      credential.salt,
+      credential.iterations,
+      account.passwordChangedAt,
+      account.userUpdatedAt,
       now.toISOString(),
     ),
     statement(db, 'DELETE FROM operational_sessions WHERE expires_at<=?', now.toISOString()),
   ]);
-  if (!asRows(authenticated[1]).length)
+  if (!asRows(authenticated[2]).length)
     reject(
       'INVALID_LOGIN',
       'As credenciais mudaram ou a conta foi bloqueada. Entre novamente.',
@@ -661,10 +682,7 @@ async function changeOwnPassword(request: Request, db: D1Database, user: User) {
       'Conta temporariamente bloqueada. Tente novamente em 15 minutos.',
       429,
     );
-  if (
-    account.iterations !== PASSWORD_ITERATIONS ||
-    !(await verifyPassword(currentPassword, account.salt, account.hash))
-  ) {
+  if (!(await verifyPassword(currentPassword, account.salt, account.hash, account.iterations))) {
     await statement(
       db,
       `UPDATE operational_credentials SET failed_attempts=failed_attempts+1,locked_until=CASE WHEN failed_attempts+1>=5 THEN ? ELSE locked_until END WHERE user_id=? AND password_hash=? AND password_salt=?`,
@@ -692,7 +710,7 @@ async function changeOwnPassword(request: Request, db: D1Database, user: User) {
     [
       statement(
         db,
-        `INSERT INTO operational_mutation_guard(token,expected_revision,actor_id,actor_role) VALUES(?,?,CASE WHEN EXISTS(SELECT 1 FROM operational_sessions s JOIN operational_credentials c ON c.user_id=s.user_id WHERE s.token_hash=? AND s.user_id=? AND s.expires_at>? AND c.password_hash=? AND c.password_salt=?) THEN ? ELSE NULL END,?)`,
+        `INSERT INTO operational_mutation_guard(token,expected_revision,actor_id,actor_role) VALUES(?,?,CASE WHEN EXISTS(SELECT 1 FROM operational_sessions s JOIN operational_credentials c ON c.user_id=s.user_id WHERE s.token_hash=? AND s.user_id=? AND s.expires_at>? AND c.password_hash=? AND c.password_salt=? AND c.password_iterations=? AND (c.locked_until IS NULL OR c.locked_until<=?)) THEN ? ELSE NULL END,?)`,
         sessionGuard,
         current.revision,
         oldDigest,
@@ -700,6 +718,8 @@ async function changeOwnPassword(request: Request, db: D1Database, user: User) {
         now,
         account.hash,
         account.salt,
+        account.iterations,
+        now,
         user.id,
         user.role,
       ),

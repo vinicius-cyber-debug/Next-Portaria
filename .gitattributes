@@ -1,2 +1,7 @@
+*.ts text eol=lf
+*.tsx text eol=lf
+*.mjs text eol=lf
+*.css text eol=lf
+
 database/postgres/*.sql text eol=lf
 database/postgres/legacy/*.sql -text whitespace=trailing-space,space-before-tab,cr-at-eol

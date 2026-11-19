@@ -81,6 +81,34 @@ Para atualizar, escolha uma tag estável, baixe seu pacote, pause a aplicação 
 
 A recuperação completa é documentada em [PostgreSQL](POSTGRESQL.md); exige banco e pasta novos. Guarde a release correspondente e a chave fora do pacote criptografado. O instalador não apaga backups antigos nem define sozinho a política de retenção deles.
 
+## Conexão iDSecure preservada entre versões
+
+No servidor, a conexão de leitura do monitor e do importador, o atualizador interativo de credenciais e a integração de saída utilizam os arquivos permanentes em `<DataRoot>\integrations`. Com a pasta padrão:
+
+- `C:\NextPortaria-Dados\integrations\idsecure.json`: credencial e identidade da central;
+- `C:\NextPortaria-Dados\integrations\idsecure-trust-HASH.pem`: cópia do certificado confiável identificado pelo hash do conteúdo;
+- `C:\NextPortaria-Dados\integrations\exit-access.json`: configuração física, quando ela já tiver sido preparada e homologada separadamente.
+
+O instalador registra `runtimeProfile: "server"` na configuração PostgreSQL da release. O iniciador do servidor define explicitamente os dois caminhos de integração na pasta de dados, inclusive se ainda não existirem. Um arquivo permanente ausente deixa a integração indisponível; não permite voltar silenciosamente a credenciais ou permissões de uma release antiga. A aplicação e seus cadastros continuam separados dessa habilitação física.
+
+Na atualização, `scripts/preserve-idsecure-config.mjs` executa apenas operações locais de preservação. Não autentica na central e não envia comandos aos equipamentos. O procedimento mantém a configuração permanente existente como a fonte atual; somente quando ela não existe procura a conexão da release anterior. As credenciais originais permanecem preservadas, e a mudança de caminho do certificado não altera o fingerprint configurado. O PEM anterior precisa coincidir com esse fingerprint. Caminhos de certificado absolutos e relativos ao arquivo de configuração são aceitos; para configurações antigas, um caminho relativo à raiz da release anterior também é reconhecido quando o caminho relativo ao arquivo não existe. Certificado divergente, arquivo ausente ou arquivo contendo chave privada interrompe a preservação, sem adotar outra confiança automaticamente.
+
+Se a configuração de saída referenciar a conexão da release anterior, o procedimento confere a origem HTTPS e o `sourceId` antes de apontá-la para o arquivo permanente. Uma conexão de saída de outra origem não é redirecionada. Um `enabled:false` permanece desativado. Se a configuração física existir somente na release antiga, sua cópia permanente é criada com `enabled:false`; a ativação e a homologação continuam sendo explícitas. O estado de uma configuração física que já estava na pasta permanente é preservado.
+
+O salvamento usa bloqueio local e verifica se o arquivo foi alterado durante a preparação. Uma credencial mais recente não é substituída por uma cópia antiga. Um arquivo `.lock` residual exige conferir o processo que o criou antes de removê-lo; não remova bloqueios enquanto houver atualização em andamento. A pasta permanente recebe permissão de leitura para LocalService, sem permitir que a aplicação altere credenciais ou certificados.
+
+Para atualizar a credencial já alterada no portal da central, abra um terminal interativo na pasta da release ativa e execute:
+
+```powershell
+npm run integration:idsecure:credentials
+```
+
+A senha é digitada somente nesse terminal. O comando usa o perfil instalado e salva após validar a conexão; não altera a senha na central. Uma configuração explícita por argumento ou `PORTO_IDSECURE_CONFIG` continua disponível para manutenção e testes. Em desenvolvimento, o padrão permanece `.porto-runtime/idsecure.json`. Ambientes que fornecem explicitamente banco e mídia, como QA, não herdam a conexão instalada: precisam fornecer seu próprio arquivo de integração, quando necessário. Um ambiente explícito incompleto é recusado, em vez de completar sua configuração com dados da instalação.
+
+Os comandos de importação `npm run integration:idsecure -- --preview` / `--apply` e de planejamento `npm run integration:face:plan` utilizam o perfil PostgreSQL instalado e recusam overrides de banco ou mídia. Para homologá-los, use uma instalação isolada com seu próprio perfil; os testes automatizados usam as fixtures diretamente. Isso impede combinar uma central fictícia informada no ambiente com o banco ou as mídias operacionais do perfil instalado. A opção `--preview` não contorna essa separação.
+
+Configurações de conexão e certificados continuam fora do backup automático de banco e mídias. Preserve uma cópia protegida desses arquivos na rotina de recuperação, além da release correspondente. Não os acrescente ao Git ou ao ZIP público. Os testes de upgrade usam pastas, credenciais e certificados fictícios; não comprovam a implantação no servidor ou a conectividade da central real.
+
 ## Aceite no servidor
 
 Para setores, responsáveis e integração de saída, consultar [Liberação individual de saída](LIBERACAO-SAIDA.md). A migração 006 não ativa bloqueios. O serviço usa a mesma tarefa da aplicação e permanece sem ações físicas até a configuração explícita e a homologação individual.

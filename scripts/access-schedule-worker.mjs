@@ -5,6 +5,7 @@ import {fileURLToPath} from 'node:url';
 import {validateScheduleConfig,scheduleDecision} from '../lib/integrations/access-schedule.mjs';
 import {IdSecureReader} from '../lib/integrations/idsecure.ts';
 import {inspectScheduleSource} from '../lib/integrations/access-schedule-probe.ts';
+import {configuredIdSecurePath} from './postgres-config.mjs';
 
 export async function writeScheduleStatus(path,value){
  await mkdir(dirname(path),{recursive:true});const temporary=path+'.'+randomUUID()+'.tmp';
@@ -25,7 +26,7 @@ async function main(){
  const args=process.argv.slice(2);if(args.some(arg=>!['--once'].includes(arg)))throw Error('Use --once ou execute sem argumentos para acompanhar continuamente.');
  const configPath=resolve(process.env.PORTO_ACCESS_SCHEDULE_CONFIG??'.porto-runtime/access-schedule.json');
  const statusPath=resolve(process.env.PORTO_ACCESS_SCHEDULE_STATUS??'.porto-runtime/access-schedule-status.json');
- const sourcePath=resolve(process.env.PORTO_IDSECURE_CONFIG??'.porto-runtime/idsecure.json');
+ const sourcePath=configuredIdSecurePath();
  if(new Set([configPath,statusPath,sourcePath].map(path=>process.platform==='win32'?path.toLowerCase():path)).size!==3)throw Error('Configuração, estado e credenciais precisam de arquivos separados.');
  validateScheduleConfig(JSON.parse(await readFile(configPath,'utf8')));
  const unlock=await acquireScheduleLock(statusPath+'.lock');let stopping=false,wake,lastSummary,failures=0;

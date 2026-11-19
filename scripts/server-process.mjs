@@ -14,9 +14,10 @@ import {validateServerConfig} from '../lib/server-network.mjs';
 export async function startServer(config){
  const {allowed,cert,key,origin}=validateServerConfig(config);loadApplicationEnvironment();
  if(['homologation','production'].includes(config.deploymentStage))process.env.PORTO_DEPLOYMENT_STAGE=config.deploymentStage;
- const resources=getResources();await resources.db.prepare('SELECT 1').first();
- const stopExitWorker=await resources.exitAccess?.startWorker();
  registerNativeProcess('https',config.port);
+ const resources=getResources();let stopExitWorker;
+ try{await resources.db.prepare('SELECT 1').first();stopExitWorker=await resources.exitAccess?.startWorker();}
+ catch(error){await resources.db.close();throw error;}
  const child=spawn(process.execPath,['scripts/run-framework.mjs','start','--hostname','127.0.0.1','--port',String(config.uiPort)],{cwd:projectRoot,windowsHide:true,stdio:'inherit',env:{...process.env,PORTO_NATIVE_PROCESS_FILE:nativeProcessPath+'.ui'}});
  let stopping=false;
  const server=createServer({cert,key,minVersion:'TLSv1.2'},async(req,res)=>{

@@ -12,6 +12,18 @@ Eventos de documentos e mídias exigem `documentView`, além de `auditView`. A m
 
 `tests/security-regressions.test.mjs` executa esses cenários pela API em duas fixtures independentes: SQLite/D1 e PostgreSQL real. Confere também a persistência dos dados após as tentativas negadas e a continuidade das alterações legítimas.
 
+## Autenticação e migração do hash de senha
+
+Revisão de 19/11/2026: novos hashes usam PBKDF2-SHA256 com **600.000 iterações**, salt aleatório e custo gravado na credencial. O mínimo de oito caracteres permanece. Criação de usuário, primeiro administrador (SQLite/D1 e PostgreSQL), troca e redefinição de senha usam a mesma função de derivação.
+
+Contas existentes com 310.000 iterações continuam autenticando. Depois de conferir a senha correta de uma conta ativa, o login atualiza o hash para o custo atual e emite a sessão na mesma transação. A atualização preserva a idade da senha, a obrigação de primeira troca, as sessões anteriores e a revisão/auditoria operacional. A verificação aceita somente os custos explicitamente suportados, 310.000 e 600.000; custos corrompidos ou arbitrários são recusados sem executar uma derivação cara.
+
+A gravação é condicional ao hash, salt, custo, idade da senha e versão do cadastro lidos. O login usa o bloqueio compartilhado com as mutações administrativas antes de atualizar a credencial e criar a sessão. Uma redefinição, alteração de situação ou bloqueio concorrente não pode ser sobrescrito por uma migração obsoleta. Dois logins legados simultâneos podem produzir um login válido e uma recusa por mudança de credencial/conflito; a aplicação não repete silenciosamente uma transação de resultado incerto. A próxima tentativa verifica o hash atual.
+
+`tests/auth-hash-upgrade.test.mjs` exercita a API com SQLite em memória e PostgreSQL isolado: migração única, custo inválido, senha errada, conta desativada, preservação de sessão/primeira troca/idade, redefinição e bloqueio concorrentes, dois logins simultâneos, rollback se a sessão não puder ser inserida e reautenticação legada na troca de senha. O caso PostgreSQL também mantém uma mutação administrativa aberta para comprovar que o login aguarda o bloqueio e não cria uma sessão com a credencial revogada. As migrações históricas mantêm seus checksums; não é necessária uma alteração de esquema para atualizar o custo no login.
+
+Esta mudança não implementa MFA, SSO ou limitação global de tentativas por origem. O bloqueio por conta após cinco falhas e as sessões locais existentes continuam em vigor. A execução da versão nova precisa ser instalada separadamente; alterar o código não modifica credenciais da base operacional sem um login válido pela versão atualizada.
+
 ## Organização e tipagem
 
 - `app/port-app.tsx` coordena sessão, navegação e sincronização. Formulários, visão geral, relatórios e administração ficam nos módulos `portal-*` correspondentes.
