@@ -10,6 +10,8 @@ As vistorias possuem álbuns separados de **saída** e **retorno**, com envio e 
 
 ## Regras da primeira entrega
 
+Para uma apresentação local, `npm run demo:logistics` adiciona três veículos fictícios, cinco viagens (duas abertas e três concluídas) e seis saídas de materiais, com cinco notas fiscais fictícias. Todos os exemplos são identificados como simulação. A operação é transacional, mantém a auditoria e a sincronização, não altera cadastros anteriores nem cria usuários. Repetir o comando reutiliza o marcador da carga, sem duplicar os registros. Uma colisão de placa interrompe a operação sem gravações.
+
 - Uma única viagem aberta por veículo da empresa.
 - Quilometragem inteira, sem retroceder em relação à leitura anterior. O retorno não pode ser menor que a saída.
 - Cadastro de frota própria separado dos veículos de visitantes e terceiros.

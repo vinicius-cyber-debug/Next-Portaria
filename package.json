@@ -38,6 +38,7 @@
     "integration:simulate": "node --experimental-strip-types scripts/simulate-access-devices.mjs",
     "check": "tsc --noEmit",
     "demo:local": "node --experimental-strip-types scripts/seed-local-demo.mjs",
+    "demo:logistics": "node --experimental-strip-types scripts/seed-logistics-demo.mjs --local",
     "dev:demo": "vite --config demo/vite.config.ts",
     "build:demo": "vite build --config demo/vite.config.ts",
     "integration:idsecure": "node --experimental-strip-types scripts/import-idsecure.mjs",
