@@ -39,6 +39,8 @@ O destino externo de backup, a credencial válida da central e a homologação f
 
 ## Evidência desta revisão
 
-Em 19/11/2026, a suíte completa terminou com 359 testes aprovados, sem falhas ou casos ignorados, incluindo PostgreSQL isolado, HTTPS e vídeo. Tipagem, lint completo, formatação e compilações nativa e Cloudflare passaram. A derivação de senha foi conferida também no runtime workerd, com os dois custos suportados.
+Em 19/11/2026, a suíte completa terminou com 362 testes aprovados, sem falhas ou casos ignorados, incluindo PostgreSQL isolado, HTTPS e vídeo. Tipagem, lint completo, formatação e compilações nativa e Cloudflare passaram. A derivação de senha foi conferida também no runtime workerd, com os dois custos suportados.
+
+A execução remota inicial confirmou o job completo de Windows e encontrou uma corrida de encerramento no Linux. A inspeção passou a reconhecer processos que viraram zumbis entre as leituras de `/proc`, aguardando confirmação limitada após o único sinal autorizado. Novas regressões reproduzem essa transição e preservam o registro quando não há confirmação. O teste visual também passou a aguardar o foco do formulário antes de limpar um campo obrigatório; suas verificações de validação foram mantidas.
 
 Antes da atualização local, o backup de banco e mídia foi recuperado em ambiente isolado e verificado: 45 tabelas, 649 arquivos e 650 referências. Essa cópia permanece no mesmo computador; ainda não comprova proteção externa. A aplicação atualizada iniciou e respondeu por HTTPS com o certificado validado. Não houve ativação de permissões físicas nem teste de reinício do servidor sem login.

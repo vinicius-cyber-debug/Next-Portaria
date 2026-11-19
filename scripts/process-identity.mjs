@@ -84,6 +84,108 @@ export function nodeEntrypoint(argv, cwd) {
   return null;
 }
 let clockTicks;
+function linuxClockTicks() {
+  if (!clockTicks) {
+    const result = spawnSync('getconf', ['CLK_TCK'], { encoding: 'utf8', timeout: 2000 });
+    clockTicks = result.status === 0 ? Number(result.stdout.trim()) : 0;
+  }
+  return clockTicks;
+}
+const linuxFields = (raw) =>
+  raw
+    .slice(raw.lastIndexOf(')') + 2)
+    .trim()
+    .split(/\s+/);
+const linuxExited = (fields) => ['Z', 'X', 'x'].includes(fields[0]);
+
+/** Separate dependencies let the /proc exit race be reproduced on Windows too. */
+export function inspectLinuxProcess(
+  pid,
+  {
+    readFile = readFileSync,
+    readlink = readlinkSync,
+    realpath = realpathSync,
+    ticks = linuxClockTicks,
+    probe = (value) => process.kill(value, 0),
+  } = {},
+) {
+  if (!Number.isSafeInteger(pid) || pid <= 0) return { state: 'unknown' };
+  const proc = '/proc/' + pid;
+  try {
+    const fields = linuxFields(readFile(proc + '/stat', 'utf8'));
+    if (linuxExited(fields)) return { state: 'dead' };
+    const startTicks = fields[19],
+      boot = readFile('/proc/sys/kernel/random/boot_id', 'utf8').trim(),
+      frequency = ticks(),
+      bootSeconds = Number(/^btime (\d+)$/m.exec(readFile('/proc/stat', 'utf8'))?.[1]);
+    if (
+      !Number.isFinite(frequency) ||
+      frequency <= 0 ||
+      !Number.isFinite(bootSeconds) ||
+      !/^\d+$/.test(startTicks)
+    )
+      return { state: 'unknown' };
+    return {
+      state: 'live',
+      pid,
+      parentPid: Number(fields[1]),
+      executable: realpath(proc + '/exe'),
+      cwd: readlink(proc + '/cwd'),
+      argv: readFile(proc + '/cmdline', 'utf8')
+        .split('\0')
+        .filter(Boolean),
+      startedAt: Math.round(bootSeconds * 1000 + (Number(startTicks) * 1000) / frequency),
+      startId: boot + ':' + startTicks,
+    };
+  } catch (error) {
+    if (error.code === 'ENOENT' || error.code === 'ESRCH') {
+      // SIGTERM can land between stat and exe/cwd. kill(pid, 0) still succeeds
+      // for a zombie; re-read its state before calling that result unknown.
+      try {
+        if (linuxExited(linuxFields(readFile(proc + '/stat', 'utf8')))) return { state: 'dead' };
+      } catch (retry) {
+        if (retry.code !== 'ENOENT' && retry.code !== 'ESRCH') return { state: 'unknown' };
+      }
+      try {
+        probe(pid);
+      } catch (failure) {
+        if (failure.code === 'ESRCH') return { state: 'dead' };
+      }
+    }
+    return { state: 'unknown' };
+  }
+}
+
+/** Confirmation only: an ambiguous inspection never causes another signal. */
+export function waitForProcessExit(
+  actual,
+  {
+    inspect = inspectProcess,
+    timeoutMs = 12000,
+    now = () => performance.now(),
+    pause = (milliseconds) =>
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, milliseconds),
+  } = {},
+) {
+  const deadline = now() + timeoutMs;
+  while (true) {
+    const current = inspect(actual.pid);
+    if (
+      current.state === 'dead' ||
+      (current.state === 'live' &&
+        current.pid === actual.pid &&
+        typeof current.startId === 'string' &&
+        current.startId &&
+        current.startId !== actual.startId)
+    )
+      return;
+    if (now() >= deadline)
+      throw Error(
+        'Não foi possível confirmar o encerramento da aplicação. O registro foi preservado.',
+      );
+    pause(50);
+  }
+}
 export function inspectProcess(pid) {
   if (!Number.isSafeInteger(pid) || pid <= 0) return { state: 'unknown' };
   if (process.platform === 'win32') {
@@ -106,47 +208,7 @@ export function inspectProcess(pid) {
       return { state: 'unknown' };
     }
   }
-  if (process.platform === 'linux') {
-    try {
-      const proc = '/proc/' + pid,
-        raw = readFileSync(proc + '/stat', 'utf8'),
-        fields = raw
-          .slice(raw.lastIndexOf(')') + 2)
-          .trim()
-          .split(/\s+/),
-        startTicks = fields[19],
-        boot = readFileSync('/proc/sys/kernel/random/boot_id', 'utf8').trim();
-      if (!clockTicks) {
-        const result = spawnSync('getconf', ['CLK_TCK'], { encoding: 'utf8', timeout: 2000 });
-        clockTicks = result.status === 0 ? Number(result.stdout.trim()) : 0;
-      }
-      if (!clockTicks) return { state: 'unknown' };
-      if (fields[0] === 'Z') return { state: 'dead' };
-      const bootSeconds = Number(/^btime (\d+)$/m.exec(readFileSync('/proc/stat', 'utf8'))?.[1]);
-      if (!Number.isFinite(bootSeconds) || !/^\d+$/.test(startTicks)) return { state: 'unknown' };
-      return {
-        state: 'live',
-        pid,
-        parentPid: Number(fields[1]),
-        executable: realpathSync(proc + '/exe'),
-        cwd: readlinkSync(proc + '/cwd'),
-        argv: readFileSync(proc + '/cmdline', 'utf8')
-          .split('\0')
-          .filter(Boolean),
-        startedAt: Math.round(bootSeconds * 1000 + (Number(startTicks) * 1000) / clockTicks),
-        startId: boot + ':' + startTicks,
-      };
-    } catch (error) {
-      if (error.code === 'ENOENT' || error.code === 'ESRCH') {
-        try {
-          process.kill(pid, 0);
-        } catch (probe) {
-          if (probe.code === 'ESRCH') return { state: 'dead' };
-        }
-      }
-      return { state: 'unknown' };
-    }
-  }
+  if (process.platform === 'linux') return inspectLinuxProcess(pid);
   return { state: 'unknown' };
 }
 export function nodeExecutable(path) {

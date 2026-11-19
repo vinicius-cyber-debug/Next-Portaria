@@ -10,6 +10,8 @@ import {
   windowsArguments,
   nodeEntrypoint,
   inspectProcess,
+  inspectLinuxProcess,
+  waitForProcessExit,
   terminateProcess,
   sameProcess,
 } from '../scripts/process-identity.mjs';
@@ -351,6 +353,138 @@ test('inspeção real identifica o processo atual sem depender só do PID', () =
     /processo mudou/,
   );
   assert.equal(signalled, false);
+});
+
+test('Linux: desaparecimento de exe/cwd após stat reconhece zumbi/exiting sem confundir permissão', () => {
+  const linuxStat = (state) =>
+    '701 (node (fixture)) ' + [state, '11', ...Array(17).fill('0'), '12345'].join(' ');
+  const failure = (code) => Object.assign(Error('fixture'), { code });
+  function scenario({
+    nextState = 'Z',
+    firstError,
+    nextError,
+    fileError = 'ENOENT',
+    vanishAt = 'exe',
+    probeError,
+  } = {}) {
+    let reads = 0,
+      probes = 0;
+    const actual = inspectLinuxProcess(701, {
+      readFile: (path) => {
+        if (path === '/proc/701/stat') {
+          reads++;
+          if (reads === 1 && firstError) throw failure(firstError);
+          if (reads > 1 && nextError) throw failure(nextError);
+          return linuxStat(reads === 1 ? 'S' : nextState);
+        }
+        if (path === '/proc/sys/kernel/random/boot_id') return 'boot-test';
+        if (path === '/proc/stat') return 'btime 1000\n';
+        throw Error('Leitura inesperada: ' + path);
+      },
+      realpath: () => {
+        if (vanishAt === 'exe') throw failure(fileError);
+        return '/usr/bin/node';
+      },
+      readlink: () => {
+        assert.equal(vanishAt, 'cwd', 'cwd não deve ser lido após exe desaparecer');
+        throw failure(fileError);
+      },
+      ticks: () => 100,
+      probe: () => {
+        probes++;
+        if (probeError) throw failure(probeError);
+      },
+    });
+    return { actual, reads, probes };
+  }
+  for (const state of ['Z', 'X', 'x'])
+    for (const vanishAt of ['exe', 'cwd']) {
+      const result = scenario({ nextState: state, vanishAt });
+      assert.deepEqual(result.actual, { state: 'dead' });
+      assert.equal(result.reads, 2);
+      assert.equal(result.probes, 0);
+    }
+  assert.equal(scenario({ nextState: 'S' }).actual.state, 'unknown');
+  assert.equal(scenario({ fileError: 'EACCES' }).actual.state, 'unknown');
+  const denied = scenario({ nextError: 'EACCES', probeError: 'ESRCH' });
+  assert.equal(denied.actual.state, 'unknown');
+  assert.equal(denied.probes, 0);
+  assert.equal(
+    scenario({ firstError: 'ENOENT', nextError: 'ENOENT', probeError: 'ESRCH' }).actual.state,
+    'dead',
+  );
+  assert.equal(scenario({ firstError: 'ENOENT', nextError: 'ENOENT' }).actual.state, 'unknown');
+});
+
+test('confirmação aguarda unknown/argv transitório e preserva prazo e identidade sem novo sinal', () => {
+  const f = fixture();
+  try {
+    const actual = f.identity(701);
+    let clock = 0;
+    const states = [{ state: 'unknown' }, { ...actual, argv: [] }, { state: 'dead' }];
+    waitForProcessExit(actual, {
+      inspect: () => states.shift(),
+      timeoutMs: 200,
+      now: () => clock,
+      pause: (ms) => {
+        clock += ms;
+      },
+    });
+    assert.equal(clock, 100);
+    for (const current of [{ state: 'unknown' }, { ...actual, argv: [] }]) {
+      clock = 0;
+      assert.throws(
+        () =>
+          waitForProcessExit(actual, {
+            inspect: () => current,
+            timeoutMs: 100,
+            now: () => clock,
+            pause: (ms) => {
+              clock += ms;
+            },
+          }),
+        /registro foi preservado/,
+      );
+      assert.equal(clock, 100);
+    }
+    waitForProcessExit(actual, {
+      inspect: () => ({ ...actual, startId: 'new-process' }),
+      pause: () => assert.fail('PID de nascimento diferente não exige outro sinal ou espera'),
+    });
+    assert.deepEqual(f.signals, []);
+  } finally {
+    f.close();
+  }
+});
+
+test('parada com inspeção unknown após SIGTERM confirma saída depois e envia um único sinal', () => {
+  const f = fixture();
+  try {
+    const record = f.registry.register('https', 8443);
+    f.setSelf(f.identity(703));
+    let signalled = 0,
+      confirmations = 0;
+    const registry = createNativeProcessRegistry({
+      root: f.root,
+      path: f.path,
+      self: () => f.identity(703),
+      inspect: (pid) =>
+        pid === 701 && signalled
+          ? ++confirmations < 3
+            ? { state: 'unknown' }
+            : { state: 'dead' }
+          : (f.states.get(pid) ?? { state: 'dead' }),
+      terminate: () => {
+        signalled++;
+      },
+    });
+    assert.deepEqual(registry.stop(record), { state: 'stopped' });
+    assert.equal(signalled, 1);
+    assert.equal(confirmations, 3);
+    assert.equal(existsSync(f.path), false);
+  } finally {
+    f.close();
+  }
 });
 
 async function startChild(script, args = []) {

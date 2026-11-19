@@ -17,6 +17,7 @@ import {
   nodeExecutable,
   sameProcess,
   terminateProcess,
+  waitForProcessExit,
 } from './process-identity.mjs';
 export const nativeProcessPath =
   process.env.PORTO_NATIVE_PROCESS_FILE ?? join(projectRoot, '.porto-runtime/native-process.json');
@@ -287,20 +288,7 @@ export function createNativeProcessRegistry({
           if (fresh.state !== 'live' || !sameProcess(status.actual, fresh.actual))
             throw Error('O processo mudou antes da parada.');
           terminate(fresh.actual);
-          const limit = Date.now() + 12000;
-          while (true) {
-            const current = inspect(fresh.actual.pid);
-            if (
-              current.state === 'dead' ||
-              (current.state === 'live' && !sameProcess(fresh.actual, current))
-            )
-              break;
-            if (current.state === 'unknown' || Date.now() > limit)
-              throw Error(
-                'Não foi possível confirmar o encerramento da aplicação. O registro foi preservado.',
-              );
-            Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 50);
-          }
+          waitForProcessExit(fresh.actual, { inspect });
         }
         removeIfSame(snapshot);
         return { state: status.state === 'live' ? 'stopped' : 'stale' };

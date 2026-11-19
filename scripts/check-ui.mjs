@@ -95,7 +95,13 @@ try{
   await dialog.getByRole('button',{name:'Enviar para autorização',exact:true}).click();await expect(current).toContainText('Visita');
   const purpose=dialog.getByRole('textbox',{name:/^Motivo da visita/});await expect(purpose).toBeFocused();await purpose.fill('Teste do cadastro em etapas');
   await dialog.getByText('Observações opcionais',{exact:true}).click();await dialog.getByRole('textbox',{name:'Observações',exact:true}).fill('Valores preservados ao voltar entre etapas.');
-  await navigation.locator('button').nth(0).click();await name.fill('');await navigation.locator('button').nth(2).click();
+  await navigation.locator('button').nth(0).click();await expect(current).toContainText('Pessoa');
+  // go(0) schedules focus in rAF. Wait for it before fill(''), whose Delete
+  // key otherwise can land on the heading instead of clearing the input.
+  await expect(dialog.locator('[data-form-step="0"] .form-step-heading')).toBeFocused();
+  await name.fill('');await expect(name).toHaveValue('');
+  expect(await name.evaluate(input=>({required:input.required,willValidate:input.willValidate,valueMissing:input.validity.valueMissing}))).toEqual({required:true,willValidate:true,valueMissing:true});
+  await navigation.locator('button').nth(2).click();
   await expect(current).toContainText('Pessoa');await expect(name).toBeFocused();
   await name.fill('Ensaio de etapas '+width);await navigation.locator('button').nth(2).click();await expect(current).toContainText('Visita');
   await expect(purpose).toHaveValue('Teste do cadastro em etapas');await expect(dialog.getByRole('textbox',{name:'Observações',exact:true})).toHaveValue('Valores preservados ao voltar entre etapas.');
