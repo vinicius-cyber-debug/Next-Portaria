@@ -1,13 +1,13 @@
 'use client';
 
-import { PrivateImage } from './private-image';
-
-import { Activity, Clock3, RefreshCw, Users, Wifi, WifiOff } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { Activity, ChevronDown, UserRound } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
 import { request } from '../lib/http-client';
-import { Button } from './ui';
-import { useClock } from './use-clock';
 import { monitorConnectionFresh, relativeEventTime } from '../lib/monitor-freshness.mjs';
+import { PrivateImage } from './private-image';
+import { useClock } from './use-clock';
+import './turnstile-monitor.css';
+
 type Event = {
   id: string;
   device: string;
@@ -26,6 +26,8 @@ type Snapshot = {
   lastSuccessAt: string | null;
   events: Event[];
 };
+type Feed = { snapshot: Snapshot; arrivals: Set<string> };
+const previewCount = 3;
 const statusNames: Record<string, string> = {
   connected: 'iDSecure conectado',
   offline: 'Conexão indisponível',
@@ -33,46 +35,53 @@ const statusNames: Record<string, string> = {
   invalid: 'Resposta da central inválida',
   unconfigured: 'Monitor não configurado',
 };
-const date = (value: string, tz: string) =>
-  new Intl.DateTimeFormat('pt-BR', {
-    timeZone: tz,
-    dateStyle: 'short',
-    timeStyle: 'medium',
-  }).format(new Date(value));
-function Photo({ event, large = false }: { event: Event; large?: boolean }) {
+function Photo({ event, spotlight = false }: { event: Event; spotlight?: boolean }) {
+  const className = spotlight ? 'turnstile-photo' : 'turnstile-avatar';
   // Authenticated photos must bypass the public image optimizer and any third-party host.
   return event.photoUrl ? (
     <PrivateImage
-      className={large ? 'turnstile-photo' : 'turnstile-avatar'}
+      className={className}
       src={event.photoUrl}
       alt={'Foto de ' + event.name}
       loading="lazy"
     />
   ) : (
-    <span
-      className={large ? 'turnstile-photo placeholder' : 'turnstile-avatar placeholder'}
-      aria-hidden="true"
-    >
-      <Users size={large ? 42 : 22} />
+    <span className={className + ' placeholder'} aria-hidden="true">
+      <UserRound size={spotlight ? 30 : 16} />
     </span>
   );
 }
+
+function EventStatus({ event }: { event: Event }) {
+  return (
+    <span className="turnstile-event" data-kind={event.kind}>
+      {event.eventName}
+    </span>
+  );
+}
+
 export function TurnstileMonitor({ enabled, tz }: { enabled: boolean; tz: string }) {
   const now = useClock(10000);
-  const [data, setData] = useState<Snapshot | null>(null),
+  const date = useMemo(
+    () =>
+      new Intl.DateTimeFormat('pt-BR', { timeZone: tz, dateStyle: 'short', timeStyle: 'medium' }),
+    [tz],
+  );
+  const [feed, setFeed] = useState<Feed | null>(null),
     [error, setError] = useState(''),
     [expanded, setExpanded] = useState(false);
   useEffect(() => {
     if (!enabled) return;
     let disposed = false,
       loading = false,
+      stopped = false,
       timer: ReturnType<typeof setTimeout> | undefined,
       controller: AbortController | undefined;
     const schedule = () => {
       if (!disposed) timer = setTimeout(() => void refresh(), 3000);
     };
     async function refresh() {
-      if (disposed || loading) return;
+      if (disposed || loading || stopped) return;
       if (document.hidden) {
         schedule();
         return;
@@ -81,7 +90,6 @@ export function TurnstileMonitor({ enabled, tz }: { enabled: boolean; tz: string
       controller = new AbortController();
       const active = controller,
         timeout = setTimeout(() => active.abort(), 15000);
-      let stop = false;
       try {
         const response = await request('/api/integrations/idsecure/monitor', {
           cache: 'no-store',
@@ -89,10 +97,10 @@ export function TurnstileMonitor({ enabled, tz }: { enabled: boolean; tz: string
         });
         if (response.status === 401 || response.status === 403) {
           if (!disposed) {
-            setData(null);
+            setFeed(null);
             setError('Sua sessão ou permissão de consulta mudou. Atualize a página.');
           }
-          stop = true;
+          stopped = true;
           return;
         }
         if (!response.ok) throw Error('Consulta indisponível');
@@ -100,18 +108,34 @@ export function TurnstileMonitor({ enabled, tz }: { enabled: boolean; tz: string
         if (!Array.isArray(snapshot.events) || snapshot.events.length > 50)
           throw Error('Resposta inválida');
         if (!disposed) {
-          setData(snapshot);
+          setFeed((previous) => {
+            const arrivals = new Set<string>();
+            if (
+              previous &&
+              previous.snapshot.source === snapshot.source &&
+              previous.snapshot.mode === snapshot.mode
+            ) {
+              const known = new Set(previous.snapshot.events.map(({ id }) => id));
+              const lastEvent = Date.parse(previous.snapshot.events[0]?.occurredAt ?? '');
+              for (const event of snapshot.events) {
+                const afterLastEvent =
+                  Number.isNaN(lastEvent) || Date.parse(event.occurredAt) >= lastEvent;
+                if (!known.has(event.id) && afterLastEvent) arrivals.add(event.id);
+              }
+            }
+            return { snapshot, arrivals };
+          });
           setError('');
         }
       } catch {
         if (!disposed)
           setError(
-            'Não foi possível consultar a central. Os últimos eventos continuam identificados pelo horário de recebimento.',
+            'Não foi possível consultar a central. O histórico mostra os últimos registros recebidos.',
           );
       } finally {
         clearTimeout(timeout);
         loading = false;
-        if (!stop) schedule();
+        if (!stopped) schedule();
       }
     }
     const visible = () => {
@@ -130,120 +154,153 @@ export function TurnstileMonitor({ enabled, tz }: { enabled: boolean; tz: string
     };
   }, [enabled]);
   if (!enabled) return null;
-  const connected = monitorConnectionFresh(data, now) && !error,
-    latest = data?.events[0],
-    events = expanded ? data?.events : data?.events.slice(0, 4);
+  const data = feed?.snapshot;
+  const connected = monitorConnectionFresh(data, now) && !error;
+  const latest = data?.events[0];
+  const history = data?.events.slice(1) ?? [];
+  const events = expanded ? history : history.slice(0, previewCount);
+  const simulation = data?.mode === 'simulation';
+  const status = error
+    ? 'Consulta indisponível'
+    : simulation
+      ? 'Simulação'
+      : !data
+        ? 'Consultando central…'
+        : data.status === 'connected' && !connected
+          ? 'Sem confirmação recente'
+          : (statusNames[data.status] ?? 'Consulta indisponível');
+  const tone = error
+    ? 'offline'
+    : simulation
+      ? 'simulation'
+      : connected
+        ? 'online'
+        : !data || data.status === 'connected' || data.status === 'unconfigured'
+          ? 'paused'
+          : 'offline';
+  const issue =
+    error ||
+    (data?.status === 'unconfigured'
+      ? 'Configure a central em Administração → Control iD.'
+      : data?.status === 'authentication'
+        ? 'Revise a credencial em Administração → Control iD.'
+        : data && data.status !== 'connected'
+          ? 'A consulta falhou. Os registros disponíveis são da última leitura.'
+          : '');
+  const formatTime = (value: string) => date.format(new Date(value));
   return (
-    <section
-      className={'card turnstile-monitor ' + (expanded ? 'expanded' : '')}
-      aria-labelledby="turnstile-monitor-title"
-    >
-      <div className="card-header">
-        <div>
-          <h2 className="card-title" id="turnstile-monitor-title">
-            <Activity size={19} />
-            Movimentação das catracas
-          </h2>
-          <p className="card-subtitle">
-            {data?.mode === 'simulation'
-              ? 'Eventos fictícios para apresentação'
-              : 'Eventos informados pelo iDSecure'}{' '}
-            · atualização automática a cada 3 segundos
-          </p>
+    <section className="turnstile-monitor" aria-labelledby="turnstile-monitor-title">
+      <header className="turnstile-header">
+        <div className="turnstile-heading">
+          <h2 id="turnstile-monitor-title">Movimentação das catracas</h2>
+          {simulation && <p>Dados fictícios para apresentação</p>}
         </div>
-        <span
-          className={'turnstile-connection ' + (connected ? 'connected' : 'unavailable')}
-          role="status"
-        >
-          {connected ? <Wifi size={15} /> : <WifiOff size={15} />}{' '}
-          {error
-            ? 'Consulta indisponível'
-            : data
-              ? data.mode === 'simulation'
-                ? 'Simulação · dados fictícios'
-                : data.status === 'connected' && !connected
-                  ? 'Sem confirmação recente'
-                  : statusNames[data.status] || 'Consulta indisponível'
-              : 'Consultando central…'}
+        <span className="turnstile-connection" data-tone={tone} role="status">
+          <span className="turnstile-dot" aria-hidden="true" />
+          {status}
         </span>
-      </div>
-      <div className="turnstile-freshness">
-        <span>
-          <strong>Origem</strong>
-          {data?.mode === 'simulation'
-            ? 'Simulação · dados fictícios'
-            : 'iDSecure · registros da central'}
-        </span>
-        <span>
-          <strong>Última consulta confirmada</strong>
-          {data?.lastSuccessAt ? date(data.lastSuccessAt, tz) : 'Aguardando consulta'}
-        </span>
-        <span
+      </header>
+      <dl className="turnstile-freshness">
+        <div>
+          <dt>Última consulta confirmada</dt>
+          <dd>
+            {data?.lastSuccessAt ? (
+              <time dateTime={data.lastSuccessAt}>{formatTime(data.lastSuccessAt)}</time>
+            ) : (
+              'Aguardando consulta'
+            )}
+          </dd>
+        </div>
+        <div
           className={
-            latest && now - Date.parse(latest.occurredAt) > 86400000 ? 'event-historical' : ''
+            latest && now - Date.parse(latest.occurredAt) > 86400000
+              ? 'event-historical'
+              : undefined
           }
         >
-          <strong>Último evento</strong>
-          {latest ? relativeEventTime(latest.occurredAt, now) : 'Nenhum evento recebido'}
-          {latest && <time dateTime={latest.occurredAt}>{date(latest.occurredAt, tz)}</time>}
-        </span>
-      </div>
-      <div className="turnstile-notice">
-        <Clock3 size={16} />
-        <span>
-          Acesso autorizado registra uma liberação. Giro e sentido físico ainda não validados; a
-          presença da portaria permanece separada.
-        </span>
-      </div>
-      {error && (
+          <dt>Último evento</dt>
+          <dd>{latest ? relativeEventTime(latest.occurredAt, now) : 'Nenhum evento recebido'}</dd>
+        </div>
+      </dl>
+      {issue && (
         <p className="turnstile-error" role="status">
-          {error}
-        </p>
-      )}
-      {data && data.status !== 'connected' && (
-        <p className="turnstile-error" role="status">
-          {data.status === 'unconfigured'
-            ? 'Configure a integração privada com iDSecure nesta instalação.'
-            : data.status === 'authentication'
-              ? 'O administrador precisa revisar a credencial privada da integração.'
-              : 'A central não respondeu à última consulta. Os registros abaixo são os últimos recebidos.'}
+          {issue}
         </p>
       )}
       {latest ? (
         <div className="turnstile-content">
-          <article className="turnstile-latest" aria-label="Último evento informado">
-            <Photo event={latest} large />
-            <div>
-              <small>ÚLTIMO EVENTO INFORMADO</small>
-              <h3>{latest.name}</h3>
-              <span className={'turnstile-event ' + latest.kind}>{latest.eventName}</span>
-              <p>{latest.device}</p>
-              <p className="field-hint">Área informada: {latest.area}</p>
-              <time dateTime={latest.occurredAt}>{date(latest.occurredAt, tz)}</time>
-              {!latest.personId && (
-                <p className="field-hint">Cadastro ainda não vinculado ao Next Portaria.</p>
-              )}
-            </div>
-          </article>
-          <div className="turnstile-list" aria-label="Eventos recentes da central">
-            {events?.map((event) => (
-              <div className="turnstile-row" key={event.id}>
-                <Photo event={event} />
-                <div className="turnstile-person">
-                  <strong>{event.name}</strong>
-                  <small>
-                    {event.device} · {event.area}
-                  </small>
-                  <time dateTime={event.occurredAt}>{date(event.occurredAt, tz)}</time>
-                </div>
-                <span className={'turnstile-event ' + event.kind}>{event.eventName}</span>
+          <article
+            className="turnstile-latest"
+            aria-label="Último evento informado"
+            data-new={feed?.arrivals.has(latest.id) || undefined}
+            key={latest.id}
+          >
+            <small className="turnstile-caption">Registro mais recente</small>
+            <div className="turnstile-identity">
+              <Photo event={latest} spotlight />
+              <div>
+                <h3>{latest.name}</h3>
+                <EventStatus event={latest} />
               </div>
-            ))}
-          </div>
+            </div>
+            <dl className="turnstile-event-meta">
+              <div>
+                <dt>Equipamento</dt>
+                <dd>{latest.device}</dd>
+              </div>
+              <div>
+                <dt>Área</dt>
+                <dd>{latest.area}</dd>
+              </div>
+              <div>
+                <dt>Horário</dt>
+                <dd>
+                  <time dateTime={latest.occurredAt}>{formatTime(latest.occurredAt)}</time>
+                </dd>
+              </div>
+            </dl>
+            {!latest.personId && <p className="turnstile-note">Cadastro ainda sem vínculo.</p>}
+          </article>
+          <section className="turnstile-history" aria-labelledby="turnstile-history-title">
+            <h3 className="turnstile-history-title" id="turnstile-history-title">
+              Eventos anteriores
+            </h3>
+            {events.length ? (
+              <ol
+                className="turnstile-list"
+                id="turnstile-history"
+                data-expanded={expanded}
+                aria-labelledby="turnstile-history-title"
+                tabIndex={expanded ? 0 : undefined}
+              >
+                {events.map((event) => (
+                  <li
+                    className="turnstile-row"
+                    key={event.id}
+                    data-new={feed?.arrivals.has(event.id) || undefined}
+                  >
+                    <Photo event={event} />
+                    <div className="turnstile-person">
+                      <strong>{event.name}</strong>
+                      <small>
+                        {event.device} · {event.area}
+                      </small>
+                    </div>
+                    <div className="turnstile-row-detail">
+                      <time dateTime={event.occurredAt}>{formatTime(event.occurredAt)}</time>
+                      <EventStatus event={event} />
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            ) : (
+              <p className="turnstile-history-empty">Nenhum registro anterior nesta consulta.</p>
+            )}
+          </section>
         </div>
       ) : (
         <div className="turnstile-empty">
-          <Activity size={26} />
+          <Activity size={23} aria-hidden="true" />
           <p>
             {data?.status === 'connected'
               ? 'A central não retornou eventos recentes.'
@@ -253,18 +310,21 @@ export function TurnstileMonitor({ enabled, tz }: { enabled: boolean; tz: string
           </p>
         </div>
       )}
-      <div className="turnstile-footer">
-        <span>
-          <RefreshCw size={14} />
-          Consulta automática a cada 3 segundos
-          {connected ? '' : ' · sem confirmação de atualização'}
-        </span>
-        {(data?.events.length ?? 0) > 4 && (
-          <Button onClick={() => setExpanded(!expanded)} aria-expanded={expanded}>
-            {expanded ? 'Mostrar menos' : 'Ver os ' + data!.events.length + ' eventos recebidos'}
-          </Button>
+      <footer className="turnstile-footer">
+        <p className="turnstile-note">Giro e sentido exigem conferência no equipamento.</p>
+        {history.length > previewCount && (
+          <button
+            type="button"
+            className="turnstile-toggle"
+            aria-expanded={expanded}
+            aria-controls="turnstile-history"
+            onClick={() => setExpanded((value) => !value)}
+          >
+            {expanded ? 'Mostrar menos' : 'Ver todos os eventos'}
+            <ChevronDown size={16} aria-hidden="true" />
+          </button>
         )}
-      </div>
+      </footer>
     </section>
   );
 }
