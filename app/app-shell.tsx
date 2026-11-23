@@ -1,6 +1,7 @@
 'use client';
 
 import {
+  Building2,
   ChevronRight,
   LockKeyhole,
   LogOut,
@@ -85,7 +86,7 @@ function Sidebar({
         </button>
       </div>
       <div className="sidebar-unit" title={unit}>
-        <span className="live-dot" />
+        <Building2 size={15} aria-hidden="true" />
         <span>{unit}</span>
       </div>
       <nav aria-label="Navegação principal">

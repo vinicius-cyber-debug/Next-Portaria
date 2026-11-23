@@ -274,7 +274,10 @@ export function LogisticsPanel({ mode, state, user, run, reload }: Props) {
           <section className="card">
             <div className="card-header">
               <h2 className="card-title">Frota própria</h2>
-              <span className="muted">{vehicles.length} veículos cadastrados</span>
+              <span className="muted">
+                {vehicles.length}{' '}
+                {vehicles.length === 1 ? 'veículo cadastrado' : 'veículos cadastrados'}
+              </span>
             </div>
             {!shownVehicles.length ? (
               <EmptyState

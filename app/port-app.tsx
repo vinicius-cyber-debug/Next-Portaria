@@ -2,7 +2,6 @@
 
 import {
   Activity,
-  ArrowRight,
   Ban,
   Bell,
   Building2,
@@ -390,6 +389,7 @@ export default function PortApp() {
     return true;
   }
   const navigate = (p: Page) => {
+      if (p !== page) window.scrollTo({ top: 0, behavior: 'instant' });
       setPage(p);
       setGlobalQuery('');
     },
@@ -553,10 +553,10 @@ export default function PortApp() {
           <div className="auth-mark">
             <BrandMark size={32} />
           </div>
-          <span className="eyebrow">NEXT PORTARIA</span>
+          <span className="auth-brand">Next Portaria</span>
           <h1>
             {auth === 'login'
-              ? 'Sua operação em um só lugar.'
+              ? 'Acessar o portal'
               : auth === 'pending'
                 ? 'Seu acesso está em análise.'
                 : auth === 'disabled'
@@ -565,7 +565,7 @@ export default function PortApp() {
           </h1>
           <p>
             {auth === 'login'
-              ? 'Acesse com sua conta para acompanhar as pessoas, os veículos e a portaria da sua unidade.'
+              ? 'Entre com sua conta da unidade.'
               : auth === 'pending'
                 ? 'Sua conta foi identificada. Peça ao administrador da unidade para ativar seu perfil na Administração.'
                 : auth === 'disabled'
@@ -619,7 +619,6 @@ export default function PortApp() {
               <button className="button primary" type="submit" disabled={loggingIn}>
                 <LogIn size={18} />
                 {loggingIn ? 'Entrando…' : 'Entrar no sistema'}
-                <ArrowRight size={18} />
               </button>
             </form>
           ) : (
@@ -628,13 +627,6 @@ export default function PortApp() {
               Verificar novamente
             </Button>
           )}
-          <div className="auth-footer">
-            <ShieldCheck size={15} />
-            Acesso privado · Permissões por perfil
-          </div>
-        </div>
-        <div className="auth-decoration" aria-hidden="true">
-          <BrandMark size={280} />
         </div>
       </div>
     );
@@ -775,7 +767,7 @@ export default function PortApp() {
           </Button>
         </div>
       )}
-      <main id="main-content" tabIndex={-1} className="page-content">
+      <main key={page} id="main-content" tabIndex={-1} className="page-content" data-screen={page}>
         {(deploymentStage === 'homologation' || environment === 'demo') && (
           <div className="environment-banner" role="note">
             <strong>
@@ -1430,7 +1422,7 @@ export default function PortApp() {
         )}
         <footer className="page-footer">
           <span>
-            Next Portaria · Operações conectadas
+            Next Portaria
             {environment === 'local' ? ' · Ambiente local' : ''}
           </span>
           <span>

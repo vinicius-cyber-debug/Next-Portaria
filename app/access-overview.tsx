@@ -1,8 +1,7 @@
 'use client';
 
-import { ArrowRight, History, LogIn, LogOut, Users } from 'lucide-react';
+import { ArrowRight, LogIn, LogOut } from 'lucide-react';
 import type { ReactNode } from 'react';
-import { EmptyState } from './ui';
 
 type Person = { id: string; name: string; company: string; detail: string; action?: ReactNode };
 type Movement = {
@@ -39,7 +38,6 @@ export function AccessOverview({
       <section className="card overview-movements" aria-labelledby="recent-movements-title">
         <div className="card-header">
           <h2 className="card-title" id="recent-movements-title">
-            <History size={18} />
             Movimentações recentes
           </h2>
           <button type="button" className="section-link" onClick={() => onView('all')}>
@@ -57,7 +55,11 @@ export function AccessOverview({
                 onClick={() => onOpen(event.personId)}
               >
                 <span className={'movement-direction ' + event.kind}>
-                  {event.kind === 'entry' ? <LogIn size={18} /> : <LogOut size={18} />}
+                  {event.kind === 'entry' ? (
+                    <LogIn size={17} aria-hidden="true" />
+                  ) : (
+                    <LogOut size={17} aria-hidden="true" />
+                  )}
                 </span>
                 <span className="overview-person">
                   <strong>{event.name}</strong>
@@ -78,14 +80,9 @@ export function AccessOverview({
             ))}
           </div>
         ) : (
-          <EmptyState
-            title="Sem movimentações"
-            text="Entradas e saídas conferidas na portaria aparecerão aqui."
-          />
+          <p className="overview-clear">Sem movimentações.</p>
         )}
-        <p className="overview-footnote">
-          Registros da janela operacional. Autorizar um acesso não registra entrada.
-        </p>
+        <p className="overview-footnote">Aqui aparecem entradas e saídas conferidas na portaria.</p>
       </section>
       <section className="card overview-attention" aria-label="Pendências e pessoas presentes">
         <div className="overview-section">
@@ -115,7 +112,6 @@ export function AccessOverview({
         <div className="overview-section">
           <div className="overview-section-heading">
             <h2>
-              <Users size={17} />
               Pessoas presentes <span>{presentCount}</span>
             </h2>
             <button type="button" className="section-link" onClick={() => onView('inside')}>

@@ -1,0 +1,294 @@
+@media screen {
+  .dashboard-layout {
+    --dashboard-entry: #214f9d;
+    --dashboard-exit: #a5b9d6;
+    display: grid;
+    gap: 18px;
+    min-width: 0;
+  }
+
+  .dashboard-layout > .grid-two,
+  .dashboard-layout > .grid-main {
+    margin-block: 0;
+  }
+
+  .dashboard-setup {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px 10px;
+    padding: 9px 14px;
+    border: 1px solid var(--border, #dce3ea);
+    border-radius: 8px;
+    background: #fff;
+    color: var(--text-secondary, #53657b);
+    font-size: 13px;
+  }
+
+  .dashboard-setup > svg {
+    flex: none;
+    color: #214f9d;
+  }
+
+  .dashboard-setup > span {
+    flex: 1 1 240px;
+    min-width: 0;
+  }
+
+  .dashboard-layout .quick-actions {
+    padding: 0;
+  }
+
+  .dashboard-layout .quick-actions > button {
+    min-height: 47px;
+    padding: 9px 16px;
+    gap: 9px;
+    border-bottom-color: var(--border, #dce3ea);
+  }
+
+  .dashboard-layout .quick-icon {
+    width: 25px;
+    height: 24px;
+    flex: none;
+    background: transparent;
+    color: #53657b;
+  }
+
+  .dashboard-layout .quick-actions > button > svg {
+    color: #53657b;
+  }
+
+  .dashboard-layout .quick-actions > button:hover,
+  .dashboard-layout .detail-list > button:hover,
+  .dashboard-layout .alert-item:hover,
+  .access-overview .overview-movement:hover,
+  .access-overview .overview-person-row:hover {
+    background: #f4f7fa;
+  }
+
+  .dashboard-layout .detail-list > button {
+    min-height: 49px;
+    border-bottom-color: var(--border, #dce3ea);
+  }
+
+  .dashboard-layout .detail-list > button:last-child {
+    border-bottom: 0;
+  }
+
+  .dashboard-layout .compact-empty {
+    padding: 15px 16px;
+  }
+
+  .dashboard-alert-count {
+    color: var(--text-secondary, #53657b);
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .dashboard-layout .chart-bar,
+  .dashboard-layout .chart-legend .chart-key-entry {
+    background: var(--dashboard-entry);
+  }
+
+  .dashboard-layout .chart-bar.secondary,
+  .dashboard-layout .chart-legend .chart-key-exit {
+    background: var(--dashboard-exit);
+  }
+
+  .dashboard-layout .chart-bar {
+    border-radius: 2px 2px 0 0;
+  }
+
+  .dashboard-layout .chart-summary {
+    justify-content: flex-start;
+    padding: 8px 16px 14px;
+    color: var(--text-secondary, #53657b);
+    font-size: 12px;
+  }
+
+  .access-overview .overview-movements > .card-header {
+    min-height: 48px;
+    padding-block: 10px;
+  }
+
+  .access-overview .overview-movement {
+    min-height: 54px;
+    padding-block: 8px;
+    border-bottom-color: var(--border, #dce3ea);
+  }
+
+  .access-overview .overview-movement time {
+    font-variant-numeric: tabular-nums;
+  }
+
+  .access-overview .movement-direction {
+    background: transparent;
+    color: #246148;
+  }
+
+  .access-overview .movement-direction.exit {
+    background: transparent;
+    color: #53657b;
+  }
+
+  .access-overview .overview-person-row {
+    min-height: 49px;
+    padding-block: 6px;
+    border-top: 1px solid var(--border, #dce3ea);
+  }
+
+  .access-overview .overview-section-heading,
+  .access-overview .overview-clear,
+  .access-overview .overview-footnote {
+    padding-block: 9px;
+  }
+
+  .access-overview .overview-section-heading h2 > span {
+    background: transparent;
+    color: var(--text-secondary, #53657b);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .access-overview .overview-footnote {
+    border-top: 1px solid var(--border, #dce3ea);
+  }
+
+  .access-overview .overview-movement-list + .overview-footnote {
+    border-top: 0;
+  }
+
+  .settings-layout {
+    gap: 16px;
+  }
+
+  .settings-layout .settings-nav {
+    gap: 0;
+    padding: 4px;
+    border-color: var(--border, #dce3ea);
+    border-radius: 8px;
+  }
+
+  .settings-layout .settings-nav button {
+    min-width: 0;
+    gap: 8px;
+    padding: 9px 10px;
+    border-radius: 5px;
+    white-space: normal;
+    color: #53657b;
+  }
+
+  .settings-layout .settings-nav button svg {
+    flex: none;
+  }
+
+  .settings-layout .settings-nav button > span {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .settings-layout .settings-nav button:hover {
+    background: #f4f7fa;
+    color: #18283b;
+  }
+
+  .settings-layout .settings-nav button[aria-current='page'] {
+    background: #eaf0f8;
+    color: #214f9d;
+    font-weight: 650;
+  }
+
+  .settings-layout .settings-panel {
+    gap: 16px;
+  }
+
+  .controlid-panel .controlid-body,
+  .controlid-panel .controlid-form,
+  .controlid-panel .controlid-certificate-fields {
+    display: grid;
+    gap: 14px;
+    min-width: 0;
+  }
+
+  .controlid-panel p:not(.notice) {
+    margin-block: 0;
+  }
+
+  .controlid-panel .controlid-scope,
+  .controlid-panel .controlid-certificate {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    color: #53657b;
+    font-size: 13px;
+  }
+
+  .controlid-panel .controlid-scope > svg,
+  .controlid-panel .controlid-certificate > svg {
+    flex: none;
+  }
+
+  .controlid-panel .controlid-certificate {
+    padding: 10px 12px;
+    border: 1px solid var(--border, #dce3ea);
+    border-radius: 8px;
+    background: #f7f9fb;
+  }
+
+  .controlid-panel .controlid-certificate > div {
+    min-width: 0;
+  }
+
+  .controlid-panel .controlid-fingerprint {
+    overflow-wrap: anywhere;
+  }
+
+  .controlid-panel .controlid-certificate-fields {
+    padding-top: 10px;
+  }
+
+  .controlid-panel .controlid-actions {
+    padding-top: 12px;
+    border-top: 1px solid var(--border, #dce3ea);
+  }
+}
+
+@media screen and (max-width: 1024px) {
+  .settings-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .settings-layout .settings-nav {
+    position: static;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    min-width: 0;
+    overflow: visible;
+  }
+
+  .settings-layout .settings-nav button {
+    width: 100%;
+    min-height: 44px;
+  }
+
+  .settings-layout .settings-nav button > svg:last-child {
+    display: none;
+  }
+}
+
+@media screen and (max-width: 600px) {
+  .dashboard-layout {
+    gap: 14px;
+  }
+
+  .dashboard-setup > span {
+    flex-basis: calc(100% - 38px);
+  }
+
+  .dashboard-setup > button {
+    margin-inline-start: 25px;
+  }
+
+  .settings-layout .settings-nav {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

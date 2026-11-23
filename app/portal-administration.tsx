@@ -92,10 +92,16 @@ export function Administration({
           { id: 'areas', label: 'Setores e áreas de acesso', icon: MapPin },
           ...(role === 'admin' ? [{ id: 'controlid', label: 'Control iD', icon: Plug }] : []),
         ].map((t) => (
-          <button className={tab === t.id ? 'active' : ''} key={t.id} onClick={() => setTab(t.id)}>
-            <t.icon size={18} />
+          <button
+            type="button"
+            className={tab === t.id ? 'active' : ''}
+            aria-current={tab === t.id ? 'page' : undefined}
+            key={t.id}
+            onClick={() => setTab(t.id)}
+          >
+            <t.icon size={16} aria-hidden="true" />
             <span>{t.label}</span>
-            <ChevronRight size={15} />
+            <ChevronRight size={14} aria-hidden="true" />
           </button>
         ))}
       </nav>
@@ -167,9 +173,6 @@ export function Administration({
               <div className="card-header">
                 <div>
                   <h2 className="card-title">Usuários da unidade</h2>
-                  <p className="card-subtitle">
-                    Ative solicitações pendentes e ajuste as permissões.
-                  </p>
                 </div>
                 <Button variant="primary small" disabled={disabled} onClick={() => open('invite')}>
                   <Plus size={16} />
@@ -275,7 +278,7 @@ export function Administration({
             )}
             <div className="card">
               <div className="card-header">
-                <h2 className="card-title">O que cada perfil pode fazer</h2>
+                <h2 className="card-title">Perfis de acesso</h2>
               </div>
               <div className="card-body role-grid">
                 {[
@@ -315,7 +318,6 @@ export function Administration({
               <div className="card-header">
                 <div>
                   <h2 className="card-title">Backup da operação</h2>
-                  <p className="card-subtitle">Guarde uma cópia em um local protegido.</p>
                 </div>
                 <ShieldCheck size={23} />
               </div>
@@ -527,11 +529,7 @@ export function SettingsForm({
   return (
     <form className="card" onSubmit={save}>
       <div className="card-header">
-        <div>
-          <h2 className="card-title">Sua unidade, do seu jeito</h2>
-          <p className="card-subtitle">Identificação e parâmetros usados no dia a dia.</p>
-        </div>
-        <Building2 size={23} />
+        <h2 className="card-title">Dados da unidade</h2>
       </div>
       <div className="card-body">
         <div className="form-grid">

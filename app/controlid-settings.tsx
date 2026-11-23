@@ -224,16 +224,13 @@ export function ControlIdSettings({
   const needsCertificate =
     !configuration?.fingerprint256 || configuration.certificateValid === false;
   return (
-    <section className="v3-spaced" aria-labelledby="controlid-settings-title">
+    <section className="controlid-panel" aria-labelledby="controlid-settings-title">
       <div className="card">
         <div className="card-header">
           <div>
             <h2 className="card-title" id="controlid-settings-title">
               Conexão Control iD / iDSecure
             </h2>
-            <p className="card-subtitle">
-              Informe o endereço da central que concentra os equipamentos da unidade.
-            </p>
           </div>
           <StatusBadge value={check ? (check.connected ? 'active' : 'denied') : 'pending'}>
             {check
@@ -245,14 +242,11 @@ export function ControlIdSettings({
                 : 'Não configurada'}
           </StatusBadge>
         </div>
-        <div className="card-body">
-          <div className="notice info">
-            <ShieldCheck size={20} aria-hidden="true" />
-            <div>
-              <strong>Modo somente leitura.</strong> Esta conexão permite consultar a central.
-              Salvar os dados não libera nem bloqueia catracas.
-            </div>
-          </div>
+        <div className="card-body controlid-body">
+          <p className="controlid-scope">
+            <ShieldCheck size={16} aria-hidden="true" />
+            <span>Conexão de leitura para consulta de eventos da central.</span>
+          </p>
           {loading && !configuration ? (
             <LoadingState>Consultando configuração…</LoadingState>
           ) : null}
@@ -285,7 +279,7 @@ export function ControlIdSettings({
             </p>
           ) : (
             configuration && (
-              <form ref={form} onSubmit={save} className="v3-spaced">
+              <form ref={form} onSubmit={save} className="controlid-form">
                 {configuration.editable === false && (
                   <p className="notice info">
                     A integração de saída está ativa. Gerencie a conexão pelo servidor.
@@ -376,7 +370,7 @@ export function ControlIdSettings({
                 </div>
                 <details className="form-section" open={needsCertificate || undefined}>
                   <summary className="field-label">Certificado público da central (PEM)</summary>
-                  <div className="v3-spaced">
+                  <div className="controlid-certificate-fields">
                     <p className="field-hint">
                       {configuration.certificateValid === false && configuration.configured
                         ? 'O certificado atual está ausente ou fora da validade. Selecione o certificado público confiável da central para reparar a conexão.'
@@ -425,17 +419,19 @@ export function ControlIdSettings({
                 {configuration.fingerprint256 && (
                   <div
                     className={
-                      configuration.certificateValid === false ? 'notice error' : 'notice info'
+                      configuration.certificateValid === false
+                        ? 'notice error'
+                        : 'controlid-certificate'
                     }
                   >
                     <ShieldCheck size={18} aria-hidden="true" />
-                    <div style={{ minWidth: 0 }}>
+                    <div>
                       <strong>
                         {configuration.certificateValid === false
                           ? 'Certificado precisa de atualização'
                           : 'Certificado configurado'}
                       </strong>
-                      <p className="field-hint" style={{ overflowWrap: 'anywhere' }}>
+                      <p className="field-hint controlid-fingerprint">
                         SHA-256: {configuration.fingerprint256}
                       </p>
                       <p className="field-hint">
@@ -455,7 +451,7 @@ export function ControlIdSettings({
                     Aguarde {retryAfter} segundo(s) para uma nova tentativa.
                   </p>
                 )}
-                <div className="actions">
+                <div className="actions controlid-actions">
                   <Button
                     disabled={locked}
                     onClick={() => {

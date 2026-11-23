@@ -1,5 +1,8 @@
 import type { Metadata } from 'next';
 import './globals.css';
+import './portal-shell.css';
+import './portal-surfaces.css';
+import './portal-screen-details.css';
 
 export const metadata: Metadata = {
   title: 'Next Portaria | Portaria e controle de acesso',
