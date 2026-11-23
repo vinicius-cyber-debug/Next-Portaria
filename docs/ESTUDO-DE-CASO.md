@@ -4,6 +4,8 @@
 
 [Experimentar demonstração](https://vinicius-cyber-debug.github.io/Next-Portaria/) · [Vídeo de 40 segundos](assets/fluxo-visita.mp4) · [Arquitetura](ARQUITETURA.md)
 
+> **Como ler este estudo de caso:** a arquitetura e a validação registradas em outubro de 2026 descrevem a versão com Cloudflare Workers, D1/SQLite e R2. Para a versão atual (0.7), consulte o [README](../README.md) e o [guia de PostgreSQL](POSTGRESQL.md). A demonstração pública continua visual e não persiste alterações.
+
 ## Problema e proposta
 
 Uma rotina de portaria envolve decisões relacionadas: quem solicita uma visita, quem pode autorizá-la, em qual período a pessoa pode entrar, como confirmar sua presença e como consultar o histórico depois.
