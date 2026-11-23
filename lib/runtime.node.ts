@@ -11,6 +11,7 @@ import {
   validateExitGatewayConfig,
 } from './exit-access/idsecure-gateway.ts';
 import { IdSecureHttp } from './integrations/idsecure-http.ts';
+import { IdSecureAdminConfig } from './integrations/admin-config.ts';
 import { readFileSync } from 'node:fs';
 const globalRuntime = globalThis as typeof globalThis & { __portariaPg?: RuntimeResources };
 export function getResources(): RuntimeResources {
@@ -20,6 +21,15 @@ export function getResources(): RuntimeResources {
   const db = new PostgresDatabase(JSON.parse(process.env.PORTO_PG_CONFIG)),
     bucket = new FileObjectStore(process.env.PORTO_MEDIA_ROOT);
   let gateway: import('./exit-access/types.ts').ExitGateway = new DisabledExitGateway();
+  function physicalIntegrationEnabled() {
+    if (!process.env.PORTO_EXIT_CONFIG) return false;
+    try {
+      return JSON.parse(readFileSync(process.env.PORTO_EXIT_CONFIG, 'utf8')).enabled !== false;
+    } catch (error) {
+      return (error as NodeJS.ErrnoException).code !== 'ENOENT';
+    }
+  }
+  const physicalConfiguredAtStartup = physicalIntegrationEnabled();
   if (process.env.PORTO_EXIT_CONFIG) {
     try {
       const config = validateExitGatewayConfig(
@@ -37,6 +47,7 @@ export function getResources(): RuntimeResources {
       console.error('Integração de saída desativada: revise a configuração e o certificado.');
     }
   }
+  const monitor = new IdSecureMonitor(db, process.env.PORTO_IDSECURE_CONFIG ?? '');
   return (globalRuntime.__portariaPg = {
     db,
     deploymentStage:
@@ -48,7 +59,11 @@ export function getResources(): RuntimeResources {
     bucket,
     media: new MediaService(db, bucket),
     porto: new PortoService(db, process.env.PORTO_PORTO_ENABLED === 'true'),
-    monitor: new IdSecureMonitor(db, process.env.PORTO_IDSECURE_CONFIG ?? ''),
+    monitor,
+    controlId: new IdSecureAdminConfig(db, process.env.PORTO_IDSECURE_CONFIG || null, {
+      canEdit: () => !physicalConfiguredAtStartup && !physicalIntegrationEnabled(),
+      onChanged: () => monitor.invalidateConfiguration(),
+    }),
     exitAccess: new ExitAccessRuntime(db, gateway),
     jobToken: process.env.PORTO_JOB_TOKEN,
     allowHttpLan: process.env.PORTO_ALLOW_HTTP_LAN === 'true',

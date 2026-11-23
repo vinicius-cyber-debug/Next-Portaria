@@ -118,6 +118,8 @@ jobs:
         run: npm run test:interface:browser
       - name: Verify company fleet, inspection media and material invoice
         run: npm run test:logistics:browser
+      - name: Verify Control iD settings against a simulated HTTPS central
+        run: npm run test:controlid:browser
       - name: Save PostgreSQL browser evidence
         if: always()
         uses: actions/upload-artifact@v6
@@ -131,6 +133,7 @@ jobs:
             .porto-tooling/exit-review
             .porto-tooling/interface-review
             .porto-tooling/logistics-browser
+            .porto-tooling/controlid-browser
       - name: Verify private video playback in browser
         run: node --experimental-strip-types --test tests/postgres.test.mjs
         env:

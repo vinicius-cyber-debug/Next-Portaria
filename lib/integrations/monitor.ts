@@ -103,59 +103,81 @@ export class IdSecureMonitor {
   private nextAttempt = 0;
   private inFlight: Promise<void> | null = null;
   private sourceId: string | null = null;
+  private configurationGeneration = 0;
   private status: 'unconfigured' | 'connected' | 'offline' | 'authentication' | 'invalid' =
     'unconfigured';
   constructor(db: Database, configPath: string, load?: () => Promise<Reader>) {
     this.db = db;
     this.load = load ?? (() => IdSecureReader.fromFile(configPath));
   }
+  /** Forget credentials and source projections without waiting for an obsolete network call. */
+  invalidateConfiguration(): void {
+    this.configurationGeneration++;
+    this.reader = undefined;
+    this.events = [];
+    this.sourceId = null;
+    this.lastSuccessAt = null;
+    this.nextAttempt = 0;
+    this.status = 'unconfigured';
+    this.inFlight = null;
+  }
   private async refresh() {
     if (this.inFlight) return this.inFlight;
     if (Date.now() < this.nextAttempt) return;
-    this.inFlight = (async () => {
-      try {
-        this.reader ??= await this.load();
-        const rows = await this.reader.readMonitor();
-        // The central repeats a log for each linked camera. Those camera fields are
-        // discarded and identical events collapse; conflicting identities remain invalid.
-        const seen = new Map<string, MonitorEvent>();
-        for (const event of rows.map(monitorEvent)) {
-          const key = event.deviceId + ':' + event.id,
-            previous = seen.get(key);
-          if (previous && JSON.stringify(previous) !== JSON.stringify(event))
-            throw new IntegrationError('invalid_input');
-          seen.set(key, event);
-        }
-        const events = [...seen.values()];
-        events.sort(
-          (a, b) =>
-            Date.parse(b.occurredAt) - Date.parse(a.occurredAt) ||
-            (BigInt(a.id) > BigInt(b.id) ? -1 : 1),
-        );
-        this.events = events.slice(0, 50);
-        this.sourceId = this.reader.sourceId;
-        this.lastSuccessAt = new Date().toISOString();
-        this.status = 'connected';
-        this.nextAttempt = Date.now() + 3000;
-      } catch (error) {
-        const kind = error as { kind?: string; code?: string };
-        this.status =
-          kind.code === 'ENOENT'
-            ? 'unconfigured'
-            : kind.kind === 'authentication'
-              ? 'authentication'
-              : kind.kind === 'invalid_input'
-                ? 'invalid'
-                : 'offline';
-        this.nextAttempt =
-          Date.now() +
-          (this.status === 'authentication' || this.status === 'unconfigured' ? 60000 : 10000);
-        this.reader = undefined;
-      } finally {
+    const generation = this.configurationGeneration;
+    this.inFlight = this.refreshGeneration(generation);
+    const pending = this.inFlight;
+    try {
+      await pending;
+    } finally {
+      if (generation === this.configurationGeneration && this.inFlight === pending)
         this.inFlight = null;
+    }
+  }
+  private async refreshGeneration(generation: number) {
+    try {
+      const reader = this.reader ?? (await this.load());
+      if (generation !== this.configurationGeneration) return;
+      this.reader = reader;
+      const rows = await reader.readMonitor();
+      if (generation !== this.configurationGeneration) return;
+      // The central repeats a log for each linked camera. Those camera fields are
+      // discarded and identical events collapse; conflicting identities remain invalid.
+      const seen = new Map<string, MonitorEvent>();
+      for (const event of rows.map(monitorEvent)) {
+        const key = event.deviceId + ':' + event.id,
+          previous = seen.get(key);
+        if (previous && JSON.stringify(previous) !== JSON.stringify(event))
+          throw new IntegrationError('invalid_input');
+        seen.set(key, event);
       }
-    })();
-    return this.inFlight;
+      const events = [...seen.values()];
+      events.sort(
+        (a, b) =>
+          Date.parse(b.occurredAt) - Date.parse(a.occurredAt) ||
+          (BigInt(a.id) > BigInt(b.id) ? -1 : 1),
+      );
+      this.events = events.slice(0, 50);
+      this.sourceId = reader.sourceId;
+      this.lastSuccessAt = new Date().toISOString();
+      this.status = 'connected';
+      this.nextAttempt = Date.now() + 3000;
+    } catch (error) {
+      if (generation !== this.configurationGeneration) return;
+      const kind = error as { kind?: string; code?: string };
+      this.status =
+        kind.code === 'ENOENT'
+          ? 'unconfigured'
+          : kind.kind === 'authentication'
+            ? 'authentication'
+            : kind.kind === 'invalid_input'
+              ? 'invalid'
+              : 'offline';
+      this.nextAttempt =
+        Date.now() +
+        (this.status === 'authentication' || this.status === 'unconfigured' ? 60000 : 10000);
+      this.reader = undefined;
+    }
   }
   async handle(request: Request, context: MediaContext) {
     if (request.method !== 'GET')
@@ -173,18 +195,23 @@ export class IdSecureMonitor {
         { error: { code: 'FORBIDDEN', message: 'A consulta exige permissão de documentos.' } },
         403,
       );
+    const generation = this.configurationGeneration,
+      cachedEvents = this.events,
+      sourceId = this.sourceId,
+      cachedStatus = this.status,
+      lastSuccessAt = this.lastSuccessAt;
     const ids = [
       ...new Set(
-        this.events.map((event) => event.sourceUserId).filter((id): id is string => id !== null),
+        cachedEvents.map((event) => event.sourceUserId).filter((id): id is string => id !== null),
       ),
     ];
     const people =
-      ids.length && this.sourceId
+      ids.length && sourceId
         ? await this.db
             .prepare(
               `SELECT id,body FROM operational_records WHERE collection='people' AND json_extract(body,'$.directory.sourceId')=? AND json_extract(body,'$.directory.recordId') IN (${ids.map(() => '?').join(',')})`,
             )
-            .bind(this.sourceId, ...ids)
+            .bind(sourceId, ...ids)
             .all<{ id: string; body: string }>()
         : { results: [] };
     const mapping = new Map<string, Person>();
@@ -192,7 +219,8 @@ export class IdSecureMonitor {
       const person = JSON.parse(row.body) as Person;
       mapping.set(person.directory.recordId, person);
     }
-    const events = this.events.map((event) => {
+    const current = generation === this.configurationGeneration;
+    const events = (current ? cachedEvents : []).map((event) => {
       const person = event.sourceUserId ? mapping.get(event.sourceUserId) : undefined;
       return {
         id: event.deviceId + ':' + event.id,
@@ -215,8 +243,8 @@ export class IdSecureMonitor {
     });
     return json({
       source: 'iDSecure',
-      status: this.status,
-      lastSuccessAt: this.lastSuccessAt,
+      status: current ? cachedStatus : this.status,
+      lastSuccessAt: current ? lastSuccessAt : this.lastSuccessAt,
       pollIntervalMs: 3000,
       events,
       passageEvidence: 'not_validated',

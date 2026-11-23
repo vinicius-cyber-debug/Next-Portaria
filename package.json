@@ -55,6 +55,7 @@
     "test:exit:browser": "node --experimental-strip-types tests/exit-browser.mjs",
     "test:interface:browser": "node --experimental-strip-types tests/interface-browser.mjs",
     "test:logistics:browser": "node --experimental-strip-types tests/logistics-browser.mjs",
+    "test:controlid:browser": "node --experimental-strip-types tests/controlid-browser.mjs",
     "format": "prettier --write \"app/**/*.{ts,tsx,css}\" \"lib/**/*.{ts,mjs}\" \"tests/support/*.mjs\" tests/security-regressions.test.mjs",
     "format:check": "prettier --check \"app/**/*.{ts,tsx,css}\" \"lib/**/*.{ts,mjs}\" \"tests/support/*.mjs\" tests/security-regressions.test.mjs"
   },

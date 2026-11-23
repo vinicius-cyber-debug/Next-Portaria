@@ -88,6 +88,7 @@ A aplicação PostgreSQL local abre em `http://127.0.0.1:5180`; o modo legado us
 - [Frota própria e saída de materiais](docs/FROTA-MATERIAIS.md) — nota fiscal, saídas, retornos, quilometragem e vistorias com fotos e vídeos.
 - [Diagnóstico da evolução](docs/DIAGNOSTICO-EVOLUCAO.md) — estabilidade PostgreSQL, cobertura e limites verificados.
 - [Preparação Control iD](docs/INTEGRACAO-CONTROLID.md) — arquitetura e simulador; conexão real aguarda modelo, firmware e validação em bancada.
+- [Configuração Control iD no portal](docs/CONFIGURACAO-CONTROLID.md) — conexão iDSecure, credenciais, certificado e teste pela Administração.
 - [Operação local](docs/OPERACAO-LOCAL.md) — instalação, usuários, rede, backup e problemas comuns.
 - [Estudo de caso](docs/ESTUDO-DE-CASO.md) — participação do autor, desafio de negócio e 154 testes aprovados na validação de 30/10/2026.
 - [Arquitetura](docs/ARQUITETURA.md) — módulos, persistência e responsabilidades.

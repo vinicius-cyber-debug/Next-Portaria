@@ -122,7 +122,8 @@ try {
  & icacls.exe (Split-Path $NodePath) /grant '*S-1-5-19:(OI)(CI)RX' | Out-Null
  & icacls.exe (Split-Path $PostgresBin) /grant '*S-1-5-20:(OI)(CI)RX' | Out-Null
  foreach($dir in @('media','run','logs','tls')){Set-PrivateAcl (Join-Path $DataRoot $dir) @($(if($dir -eq 'tls'){'*S-1-5-19:(OI)(CI)RX'}else{'*S-1-5-19:(OI)(CI)M'}))}
- Set-PrivateAcl (Join-Path $DataRoot 'integrations') @('*S-1-5-19:(OI)(CI)RX')
+ # O editor grava e substitui apenas a conexao e os certificados nesta pasta protegida.
+ Set-PrivateAcl (Join-Path $DataRoot 'integrations') @('*S-1-5-19:(OI)(CI)M')
  foreach($dir in @('.vinext')){New-Item -ItemType Directory -Path (Join-Path $release $dir) -Force | Out-Null;Set-PrivateAcl (Join-Path $release $dir) @('*S-1-5-19:(OI)(CI)M')}
  Save-Json @{root=$release;dataRoot=$DataRoot;node=$NodePath;uiPort=$UiPort;version=$manifest.version;commit=$manifest.commit;previousRoot=$previous.root;portoEnabled=($EnablePorto.IsPresent -or $previous.portoEnabled -eq $true)} $currentPath
  Save-Json @{externalPath=$ExternalBackupPath;keyDirectory=$RecoveryKeyDirectory} (Join-Path $InstallRoot 'backup.json')

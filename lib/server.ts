@@ -74,6 +74,7 @@ type Resources = {
   media?: MediaHandler;
   porto?: PortoHandler;
   monitor?: MediaHandler;
+  controlId?: MediaHandler;
   exitAccess?: import('./persistence/contracts.ts').RuntimeResources['exitAccess'];
   jobToken?: string;
   allowHttpLan?: boolean;
@@ -1099,6 +1100,38 @@ export async function handleApi(
         'Altere sua senha inicial antes de acessar a operação.',
         403,
       );
+    if (path === '/api/admin/controlid' || path === '/api/admin/controlid/test') {
+      requireAdmin(user);
+      const connectionUrl = new URL(request.url);
+      if (
+        connectionUrl.protocol !== 'https:' &&
+        !['localhost', '127.0.0.1', '[::1]'].includes(connectionUrl.hostname)
+      )
+        reject('HTTPS_REQUIRED', 'Use HTTPS para configurar a conexão da central pela rede.', 403);
+      if (!resources.controlId) {
+        if (path === '/api/admin/controlid' && request.method === 'GET')
+          return response({ supported: false, configured: false });
+        return response(
+          {
+            error: {
+              code: 'CONTROLID_UNAVAILABLE',
+              message: 'A configuração Control iD exige a instalação PostgreSQL nativa.',
+            },
+          },
+          503,
+        );
+      }
+      return await resources.controlId.handle(request, {
+        user,
+        authorize: async (connection = db) => {
+          const fresh = await withCapabilities(connection, await identify(request, connection));
+          requireAdmin(fresh);
+          if (fresh.mustChangePassword)
+            reject('PASSWORD_CHANGE_REQUIRED', 'Altere sua senha inicial.', 403);
+          return fresh;
+        },
+      });
+    }
     if (path === '/api/integrations/idsecure/monitor') {
       requireCapability(user, 'documentView');
       if (request.method !== 'GET') reject('METHOD_NOT_ALLOWED', 'Método não permitido.', 405);

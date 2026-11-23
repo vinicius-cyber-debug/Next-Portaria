@@ -59,6 +59,7 @@ export type RuntimeResources = {
   media?: MediaHandler;
   porto?: PortoHandler;
   monitor?: MediaHandler;
+  controlId?: MediaHandler;
   exitAccess?: {
     handle: (
       request: Request,

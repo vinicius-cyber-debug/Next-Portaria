@@ -15,6 +15,7 @@ import {
   MapPin,
   Pencil,
   Plus,
+  Plug,
   Printer,
   ShieldCheck,
   Upload,
@@ -41,6 +42,7 @@ import {
 } from './portal-shared';
 import { Button } from './ui';
 import { ExitAccessPanel } from './exit-access-panel';
+import { ControlIdSettings } from './controlid-settings';
 
 export function Administration({
   user,
@@ -88,6 +90,7 @@ export function Administration({
           { id: 'access', label: 'Permissões detalhadas', icon: LockKeyhole },
           ...(role === 'admin' ? [{ id: 'sectors', label: 'Setores e líderes', icon: Users }] : []),
           { id: 'areas', label: 'Setores e áreas de acesso', icon: MapPin },
+          ...(role === 'admin' ? [{ id: 'controlid', label: 'Control iD', icon: Plug }] : []),
         ].map((t) => (
           <button className={tab === t.id ? 'active' : ''} key={t.id} onClick={() => setTab(t.id)}>
             <t.icon size={18} />
@@ -97,6 +100,9 @@ export function Administration({
         ))}
       </nav>
       <div className="settings-panel">
+        {tab === 'controlid' && role === 'admin' && (
+          <ControlIdSettings disabled={disabled} onSaved={loadState} />
+        )}
         {tab === 'sectors' && role === 'admin' && (
           <ExitAccessPanel user={user} administration disabled={disabled} />
         )}
