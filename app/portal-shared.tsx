@@ -25,7 +25,7 @@ import {
   Users,
   X,
 } from 'lucide-react';
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { clientRequestId } from '../lib/client-id';
 import { PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH } from '../lib/password-policy.mjs';
 import { usePagedRecords } from './access-support';
@@ -332,12 +332,14 @@ export function Empty({
 export function Action({
   icon: Icon,
   label,
+  compactLabel,
   onClick,
   disabled,
   danger = false,
 }: {
   icon: typeof Anchor;
   label: string;
+  compactLabel?: string;
   onClick: () => void;
   disabled?: boolean;
   danger?: boolean;
@@ -351,7 +353,8 @@ export function Action({
       disabled={disabled}
       onClick={onClick}
     >
-      <Icon size={16} />
+      <Icon size={16} aria-hidden="true" />
+      {compactLabel && <span className="visitor-compact-label">{compactLabel}</span>}
     </button>
   );
 }
@@ -418,11 +421,15 @@ export function Table<T extends { id: string } = Row>({
   emptyTitle,
   emptyText,
   server,
+  stackOnNarrow = false,
+  label,
 }: {
   rows: T[];
   columns: { title: string; render: (r: T) => React.ReactNode }[];
   emptyTitle?: string;
   emptyText?: string;
+  stackOnNarrow?: boolean;
+  label?: string;
   server?: {
     collection: string;
     q?: string;
@@ -433,8 +440,15 @@ export function Table<T extends { id: string } = Row>({
 }) {
   const scope = JSON.stringify([server?.collection, server?.q, server?.status, server?.params]);
   const [pagination, setPagination] = useState({ scope, page: 0 });
+  const list = useRef<HTMLDivElement>(null);
   const page = pagination.scope === scope ? pagination.page : 0;
-  const setPage = (next: number) => setPagination({ scope, page: next });
+  const setPage = (next: number) => {
+    setPagination({ scope, page: next });
+    if (stackOnNarrow) {
+      list.current?.focus({ preventScroll: true });
+      list.current?.scrollIntoView({ block: 'start', behavior: 'instant' });
+    }
+  };
   const remote = usePagedRecords<T>(
       server?.collection || '',
       { q: server?.q, status: server?.status, ...server?.params },
@@ -455,25 +469,29 @@ export function Table<T extends { id: string } = Row>({
           <Button onClick={remote.retry}>Tentar novamente</Button>
         </div>
       )}
-      <DataTable busy={!!(server && remote.loading)}>
+      <DataTable busy={!!(server && remote.loading)} label={label} ref={list}>
         {server && remote.loading && !visible.length ? (
           <LoadingState />
         ) : !visible.length && !remote.error ? (
           <Empty title={emptyTitle} text={emptyText} />
         ) : (
-          <table className="data-table">
-            <thead>
-              <tr>
+          <table className="data-table" role={stackOnNarrow ? 'table' : undefined}>
+            <thead role={stackOnNarrow ? 'rowgroup' : undefined}>
+              <tr role={stackOnNarrow ? 'row' : undefined}>
                 {columns.map((c, i) => (
-                  <th key={i}>{c.title}</th>
+                  <th key={i} scope="col" role={stackOnNarrow ? 'columnheader' : undefined}>
+                    {c.title}
+                  </th>
                 ))}
               </tr>
             </thead>
-            <tbody>
+            <tbody role={stackOnNarrow ? 'rowgroup' : undefined}>
               {visible.map((r, i) => (
-                <tr key={r.id || i}>
+                <tr key={r.id || i} role={stackOnNarrow ? 'row' : undefined}>
                   {columns.map((c, j) => (
-                    <td key={j}>{c.render(r)}</td>
+                    <td key={j} role={stackOnNarrow ? 'cell' : undefined}>
+                      {c.render(r)}
+                    </td>
                   ))}
                 </tr>
               ))}
@@ -487,27 +505,29 @@ export function Table<T extends { id: string } = Row>({
             {active * 12 + 1}–{Math.min((active + 1) * 12, total)} de {total} registros
             {server && remote.loading ? ' · atualizando…' : ''}
           </span>
-          <div className="actions">
-            <button
-              className="icon-button"
-              disabled={!active || (server && remote.loading)}
-              onClick={() => setPage(active - 1)}
-              aria-label="Página anterior"
-            >
-              <ChevronLeft size={16} />
-            </button>
-            <span>
-              {active + 1} / {count}
-            </span>
-            <button
-              className="icon-button"
-              disabled={active + 1 >= count || (server && remote.loading)}
-              onClick={() => setPage(active + 1)}
-              aria-label="Próxima página"
-            >
-              <ChevronRight size={16} />
-            </button>
-          </div>
+          {(!stackOnNarrow || count > 1) && (
+            <div className="actions">
+              <button
+                className="icon-button"
+                disabled={!active || (server && remote.loading)}
+                onClick={() => setPage(active - 1)}
+                aria-label="Página anterior"
+              >
+                <ChevronLeft size={16} />
+              </button>
+              <span>
+                {active + 1} / {count}
+              </span>
+              <button
+                className="icon-button"
+                disabled={active + 1 >= count || (server && remote.loading)}
+                onClick={() => setPage(active + 1)}
+                aria-label="Próxima página"
+              >
+                <ChevronRight size={16} />
+              </button>
+            </div>
+          )}
         </div>
       )}
     </>

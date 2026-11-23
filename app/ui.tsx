@@ -296,17 +296,22 @@ export function ModalFrame({
 export function DataTable({
   children,
   busy = false,
+  label = 'Tabela de registros. Role para ver todas as colunas.',
+  ref,
 }: {
   children: React.ReactNode;
   busy?: boolean;
+  label?: string;
+  ref?: React.Ref<HTMLDivElement>;
 }) {
   return (
     <div
+      ref={ref}
       className="table-wrap"
       aria-busy={busy}
       tabIndex={0}
       role="region"
-      aria-label="Tabela de registros. Role para ver todas as colunas."
+      aria-label={label}
     >
       {children}
     </div>

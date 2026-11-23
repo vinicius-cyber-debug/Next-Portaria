@@ -881,7 +881,7 @@ export default function PortApp() {
         )}
         {page === 'visitors' && (
           <>
-            <div className="stat-strip">
+            <div className="stat-strip visitor-summary">
               <div className="stat-item">
                 <Users size={19} />
                 <span>
@@ -902,7 +902,7 @@ export default function PortApp() {
                 </span>
               </div>
             </div>
-            <div className="card">
+            <div className="card visitor-results">
               <Toolbar
                 query={query}
                 onQuery={setQuery}
@@ -920,15 +920,21 @@ export default function PortApp() {
                   'revoked',
                   'cancelled',
                 ]}
-                placeholder="Buscar nome, empresa ou final do documento…"
+                placeholder="Nome, empresa ou final do documento"
               />
               <Table
+                stackOnNarrow
+                label="Lista de visitantes"
                 server={{ collection: 'visitors', q: query, status, revision }}
                 rows={visitors.filter(
                   (r) => match(r, query) && (status === 'all' || r.status === status),
                 )}
-                emptyTitle="Sua portaria começa por aqui"
-                emptyText="Registre uma solicitação com motivo, responsável e validade. A diretoria poderá autorizar o acesso."
+                emptyTitle="Nenhum visitante encontrado"
+                emptyText={
+                  query || status !== 'all'
+                    ? 'Tente outro nome ou ajuste o filtro de situação.'
+                    : 'Use Nova solicitação para registrar uma visita.'
+                }
                 columns={[
                   {
                     title: 'Visitante',
@@ -949,7 +955,10 @@ export default function PortApp() {
                     title: 'Motivo / responsável',
                     render: (r) => (
                       <div>
-                        {r.purpose}
+                        <span className="visitor-compact-label" aria-hidden="true">
+                          Motivo / responsável
+                        </span>
+                        {r.purpose || '—'}
                         <span className="cell-subtle">{r.host}</span>
                       </div>
                     ),
@@ -958,6 +967,9 @@ export default function PortApp() {
                     title: 'Previsão / validade',
                     render: (r) => (
                       <div>
+                        <span className="visitor-compact-label" aria-hidden="true">
+                          Previsão / validade
+                        </span>
                         {dt(r.expectedAt, tz, true)}
                         <span className="cell-subtle">Até {dt(r.validUntil, tz, true)}</span>
                       </div>
@@ -981,12 +993,14 @@ export default function PortApp() {
                         <Action
                           icon={Eye}
                           label="Detalhes do visitante"
+                          compactLabel="Detalhes"
                           onClick={() => open('detail', r, 'visitors')}
                         />
                         {r.status === 'pending' && canDecide(user, r) && (
                           <Action
                             icon={Check}
                             label="Autorizar acesso"
+                            compactLabel="Autorizar"
                             disabled={disabled}
                             onClick={() => open('confirm', r, 'VISITOR_APPROVE')}
                           />
@@ -995,6 +1009,7 @@ export default function PortApp() {
                           <Action
                             icon={X}
                             label="Recusar solicitação"
+                            compactLabel="Recusar"
                             disabled={disabled}
                             danger
                             onClick={() => open('reason', r, 'VISITOR_REJECT')}
@@ -1004,6 +1019,7 @@ export default function PortApp() {
                           <Action
                             icon={LogIn}
                             label="Registrar entrada"
+                            compactLabel="Registrar entrada"
                             disabled={disabled}
                             onClick={() => open('confirm', r, 'VISITOR_CHECKIN')}
                           />
@@ -1012,6 +1028,7 @@ export default function PortApp() {
                           <Action
                             icon={LogOut}
                             label="Registrar saída"
+                            compactLabel="Registrar saída"
                             disabled={disabled}
                             onClick={() => open('confirm', r, 'VISITOR_CHECKOUT')}
                           />
@@ -1020,6 +1037,7 @@ export default function PortApp() {
                           <Action
                             icon={Ban}
                             label="Revogar autorização"
+                            compactLabel="Revogar"
                             disabled={disabled}
                             danger
                             onClick={() => open('reason', r, 'VISITOR_REVOKE')}
@@ -1029,6 +1047,7 @@ export default function PortApp() {
                           <Action
                             icon={Ban}
                             label="Cancelar solicitação"
+                            compactLabel="Cancelar"
                             disabled={disabled}
                             onClick={() => open('reason', r, 'VISITOR_CANCEL')}
                           />

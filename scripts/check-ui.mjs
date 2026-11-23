@@ -143,6 +143,13 @@ try{
    await openModule(pageName);
    await check(width+'-'+pageName.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replaceAll(' ','-'),{a11y:width===1366||width===390,capture:true});
    if(pageName==='Central de Acesso'&&(width===1366||width===390))await refinedCentral(width);
+   if(pageName==='Visitantes'&&width<=430){
+    const results=page.getByRole('region',{name:'Lista de visitantes',exact:true});
+    const firstVisitor=results.locator('tbody tr').first();
+    await expect(firstVisitor).toHaveCSS('display','grid');
+    await expect.poll(()=>results.evaluate(list=>list.scrollWidth-list.clientWidth)).toBeLessThanOrEqual(1);
+    await expect(firstVisitor.getByText('Detalhes',{exact:true})).toBeVisible();
+   }
    if(pageName==='Veículos'&&(width===1366||width===390)){
     await page.getByLabel('Entrada desde',{exact:true}).fill('2099-01-01');
     await expect(page.locator('main .data-table tbody tr')).toHaveCount(0);
