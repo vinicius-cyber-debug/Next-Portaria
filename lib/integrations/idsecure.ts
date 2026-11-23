@@ -98,7 +98,7 @@ export class IdSecureReader {
   readonly mode = 'read_only';
   #connection: IdSecureHttp;
   constructor(config: IdSecureConfig, ca: string) {
-    this.#connection = new IdSecureHttp(config, ca);
+    this.#connection = new IdSecureHttp(config, ca, { readOnly: true });
   }
   get sourceId() {
     return this.#connection.sourceId;

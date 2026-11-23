@@ -10,6 +10,8 @@ A instalação PostgreSQL possui a área **Administração → Control iD**, exc
 4. Use **Testar conexão**. O teste autentica e consulta a configuração da central, sem enviar regras ou alterar catracas.
 5. Use **Salvar conexão**. O sistema valida novamente antes de salvar. Aguarde o intervalo indicado se tiver acabado de testar.
 
+A aba aceita a credencial atual da central para consultas, inclusive quando a senha coincide com o usuário. Nesse caso, o portal deixa o campo de usuário em branco após salvar para proteger o valor compartilhado. O monitor usa a credencial salva. O controle físico de saída exige credenciais distintas.
+
 O identificador da integração é definido na primeira configuração e preservado depois, para manter os vínculos dos funcionários. A tela mostra fingerprint SHA-256, validade do certificado e o horário do último teste efetuado durante a edição. A configuração salva não comprova conectividade contínua; consulte também o estado e a atualização dos eventos no painel.
 
 ## Proteção e continuidade

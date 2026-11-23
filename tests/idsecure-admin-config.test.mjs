@@ -4,6 +4,8 @@ import { mkdtemp, mkdir, readFile, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve, sep } from 'node:path';
 import { IdSecureAdminConfig } from '../lib/integrations/admin-config.ts';
+import { IdSecureReader } from '../lib/integrations/idsecure.ts';
+import { IdSecureHttp } from '../lib/integrations/idsecure-http.ts';
 import { handleApi } from '../lib/server.ts';
 import { centralFixture } from './support/idsecure-central-fixture.mjs';
 import { hasPostgres, withPostgresFixture } from './support/postgres-fixture.mjs';
@@ -89,7 +91,6 @@ test(
               { origin: 'http://127.0.0.1:30443' },
               { origin: 'https://user:secret@192.168.1.2:30443' },
               { origin: 'https://192.168.1.2:30443/path' },
-              { password: input.username },
               { certificatePem: input.certificatePem + central.tls.privateKey.toString() },
               { certificatePath: 'C:/private.file' },
               { mode: 'write' },
@@ -513,10 +514,92 @@ test(
           },
         );
 
+        await t.test(
+          'credencial igual ao usuário pode ser testada e salva apenas na conexão de leitura',
+          async () => {
+            const separatePath = join(home, 'same-credential', 'idsecure.json');
+            const readOnlyService = new IdSecureAdminConfig(db, separatePath, {
+              minimumIntervalMs: 0,
+            });
+            const initial = (await call(readOnlyService)).body;
+            const sameCredential = {
+              ...input,
+              username: 'qa-same-credential',
+              password: 'qa-same-credential',
+              version: initial.version,
+            };
+            const checked = await call(
+              readOnlyService,
+              'POST',
+              sameCredential,
+              context,
+              '/api/admin/controlid/test',
+            );
+            assert.equal(checked.status, 200, JSON.stringify(checked.body));
+            assert.equal(checked.body.connection.status, 'connected');
+            const saved = await call(readOnlyService, 'PUT', sameCredential);
+            assert.equal(saved.status, 200, JSON.stringify(saved.body));
+            assert.equal(saved.body.mode, 'read_only');
+            assert.equal(saved.body.hardwareWritesEnabled, false);
+            const persisted = JSON.parse(await readFile(separatePath, 'utf8'));
+            assert.equal(persisted.password, persisted.username);
+            assert.equal(persisted.fingerprint256, central.credentials.fingerprint256);
+            const reader = await IdSecureReader.fromFile(separatePath);
+            assert.deepEqual(await reader.readMonitor(), []);
+            const directory = await reader.readPage();
+            assert.equal(directory.items.length, 3);
+            assert.deepEqual(
+              directory.items.map((person) => person.nativeId),
+              ['101', '102', '103'],
+            );
+            const keep = await call(readOnlyService, 'PUT', {
+              ...sameCredential,
+              password: '',
+              certificatePem: '',
+              version: saved.body.version,
+            });
+            assert.equal(keep.status, 200, JSON.stringify(keep.body));
+            assert.equal(
+              JSON.parse(await readFile(separatePath, 'utf8')).fingerprint256,
+              central.credentials.fingerprint256,
+            );
+            const viewed = await call(readOnlyService);
+            assert.equal(viewed.status, 200);
+            for (const result of [viewed.body, checked.body, saved.body, keep.body]) {
+              assert.ok(!JSON.stringify(result).includes(sameCredential.password));
+              assert.equal(Object.hasOwn(result, 'password'), false);
+              assert.equal(Object.hasOwn(result.configuration ?? {}, 'password'), false);
+              assert.ok(!JSON.stringify(result).includes('certificatePath'));
+              assert.ok(!JSON.stringify(result).includes('BEGIN CERTIFICATE'));
+              assert.ok(!JSON.stringify(result).includes('accessToken'));
+            }
+            const secretInAudit = await owner.query(
+              "SELECT count(*) AS n FROM operational_audit WHERE body LIKE '%qa-same-credential%'",
+            );
+            assert.equal(secretInAudit.rows[0].n, '0');
+            assert.throws(
+              () => new IdSecureHttp(persisted, central.tls.ca.toString('utf8')),
+              (error) => error.kind === 'authentication',
+            );
+            const locked = new IdSecureHttp(persisted, central.tls.ca.toString('utf8'), {
+              readOnly: true,
+            });
+            for (const method of ['POST', 'DELETE']) {
+              await assert.rejects(
+                locked.call('/api/rule/', method, {}),
+                (error) => error.kind === 'unsupported',
+              );
+            }
+          },
+        );
+
         assert.ok(central.requests.length > 0);
         assert.ok(
           central.requests.every(
-            (request) => request.method === 'GET' && request.path === '/api/util/configUI',
+            (request) =>
+              (request.method === 'GET' &&
+                ['/api/util/configUI', '/api/access/monitor'].includes(request.path)) ||
+              (request.method === 'POST' && request.path === '/api/user/list'),
           ),
         );
         assert.equal(central.rules.size, 0);

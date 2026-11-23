@@ -28,8 +28,9 @@ export class IdSecureHttp {
   readonly sourceId: string;
   #config: IdSecureConfig;
   #ca: string;
+  #readOnly: boolean;
   #token: string | null = null;
-  constructor(config: IdSecureConfig, ca: string) {
+  constructor(config: IdSecureConfig, ca: string, { readOnly = false } = {}) {
     const url = new URL(config.origin),
       parts = url.hostname.split('.').map(Number);
     const privateHost =
@@ -56,8 +57,8 @@ export class IdSecureHttp {
       !/^[a-z0-9_-]{2,60}$/.test(config.sourceId)
     )
       throw new IntegrationError('invalid_input');
-    // Reject credentials that repeat the username before making any network request.
-    if (config.password === config.username) throw new IntegrationError('authentication');
+    if (!readOnly && config.password === config.username)
+      throw new IntegrationError('authentication');
     const cert = new X509Certificate(ca);
     if (
       cert.fingerprint256.toUpperCase() !== config.fingerprint256.toUpperCase() ||
@@ -67,6 +68,7 @@ export class IdSecureHttp {
       throw new IntegrationError('invalid_input');
     this.#config = { ...config, origin: url.origin };
     this.#ca = ca;
+    this.#readOnly = readOnly;
     this.sourceId = config.sourceId;
   }
   static async fromFile(path: string) {
@@ -87,6 +89,13 @@ export class IdSecureHttp {
       path.includes('\\')
     )
       throw new IntegrationError('invalid_input');
+    // iDSecure uses POST for the directory listing, even though it only reads records.
+    if (
+      this.#readOnly &&
+      method !== 'GET' &&
+      !(method === 'POST' && path.startsWith('/api/user/list?'))
+    )
+      throw new IntegrationError('unsupported');
     if (!this.#token) {
       const result = (await this.raw(
         '/api/login/',

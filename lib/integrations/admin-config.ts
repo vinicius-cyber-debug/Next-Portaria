@@ -279,7 +279,10 @@ export class IdSecureAdminConfig {
       editable: this.editable(),
       configured: Boolean(stored.config),
       origin: stored.config?.origin ?? '',
-      username: stored.config?.username ?? '',
+      username:
+        stored.config && stored.config.username !== stored.config.password
+          ? stored.config.username
+          : '',
       sourceId: stored.config?.sourceId ?? 'idsecure-principal',
       fingerprint256: stored.config?.fingerprint256 ?? '',
       certificateExpiresAt: certificate ? new Date(certificate.validTo).toISOString() : null,
@@ -320,11 +323,6 @@ export class IdSecureAdminConfig {
         : input.password;
     if (typeof password !== 'string' || !password || password.length > 1024)
       throw new ConfigError('CONTROLID_INVALID', 'Informe a senha atual da central.');
-    if (password === username)
-      throw new ConfigError(
-        'CONTROLID_INVALID',
-        'A senha não pode ser igual ao usuário. Altere essa credencial na central.',
-      );
     if (input.certificatePem !== undefined && typeof input.certificatePem !== 'string')
       throw new ConfigError('CONTROLID_INVALID', 'Certificado inválido.');
     const certificate =
@@ -373,7 +371,7 @@ export class IdSecureAdminConfig {
       ),
     };
     // Validation occurs before any HTTP request, even when tests inject the client.
-    new IdSecureHttp(config, pem);
+    new IdSecureHttp(config, pem, { readOnly: true });
     return {
       config: { ...config, origin: new URL(origin).origin },
       certificate: pem,
@@ -383,7 +381,7 @@ export class IdSecureAdminConfig {
   private async check(candidate: Candidate) {
     const connection =
       this.options.createConnection?.(candidate.config, candidate.certificate) ??
-      new IdSecureHttp(candidate.config, candidate.certificate);
+      new IdSecureHttp(candidate.config, candidate.certificate, { readOnly: true });
     await connection.call('/api/util/configUI', 'GET', undefined, 10000);
     return { status: 'connected' as const, checkedAt: new Date(this.clock()).toISOString() };
   }
@@ -406,7 +404,6 @@ export class IdSecureAdminConfig {
           before: null,
           after: {
             origin: candidate.config.origin,
-            username: candidate.config.username,
             sourceId: candidate.config.sourceId,
             fingerprint256: candidate.config.fingerprint256,
             mode: 'read_only',
@@ -506,7 +503,10 @@ export class IdSecureAdminConfig {
             connection,
             configuration: {
               origin: candidate.config.origin,
-              username: candidate.config.username,
+              username:
+                candidate.config.username === candidate.config.password
+                  ? ''
+                  : candidate.config.username,
               sourceId: candidate.config.sourceId,
               fingerprint256: candidate.config.fingerprint256,
               certificateExpiresAt: new Date(candidate.publicCertificate.validTo).toISOString(),
