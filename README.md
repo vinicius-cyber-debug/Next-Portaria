@@ -14,6 +14,13 @@ A versão `0.7.0` usa **PostgreSQL 17**, arquivos privados fora do código e env
 
 Experimente no navegador, sem instalação ou login, com dados fictícios e alterações apenas na memória da aba.
 
+### Duas decisões de implementação
+
+- **Permissões no servidor:** a API verifica o papel do usuário antes de executar ações do fluxo de visita. A interface, sozinha, não decide quem pode alterar uma autorização.
+- **Operações sem duplicidade:** o fluxo usa idempotência e revisão esperada para lidar com reenvios e mudanças de estado. As regras ficam separadas da interface e do HTTP para poderem ser testadas isoladamente.
+
+[Entenda as decisões no estudo de caso](docs/ESTUDO-DE-CASO.md) · [Consulte as execuções do CI da branch principal](https://github.com/vinicius-cyber-debug/Next-Portaria/actions/workflows/quality.yml?query=branch%3Amain)
+
 ## O que você pode fazer
 
 | Recurso | Na rotina da equipe |
