@@ -39,6 +39,10 @@ export function createDemoSeed(now=new Date().toISOString()) {
     const vehicle=apply('VEHICLE_ENTER',{plate:fleet.plate,fleetId:fleet.id,driver:person.name,driverPersonId:person.id,company:person.company,purpose:'Apoio à operação · exemplo fictício',host:'Marina Rocha',gateName:index%2?'Portaria de serviços':'Portaria principal'},index<4?-0.8-index*0.3:-24);
     if(index>=4)apply('VEHICLE_EXIT',{id:vehicle.id},-23);
   }
+  const utility=apply('FLEET_VEHICLE_SAVE',{plate:'FIC8D81',name:'Utilitário de manutenção · demonstração',initialOdometerKm:18120},-48);
+  const trip=apply('FLEET_DEPART',{fleetId:utility.id,driver:'Bruno Azevedo',destination:'Oficina de apoio (fictícia)',purpose:'Revisão programada',odometerOut:18120},-7);
+  apply('FLEET_RETURN',{id:trip.id,odometerIn:18152},-5);
+  apply('MATERIAL_EXIT_CREATE',{description:'Bombas para revisão em oficina (fictícias)',quantity:'2 unidades',destination:'Oficina de apoio (fictícia)',responsible:'Equipe de manutenção',invoiceNumber:'NF-DEMO-0245',vehiclePlate:utility.plate},-7);
   const first=apply('INCIDENT_CREATE',{title:'Iluminação do acesso lateral',description:'Uma luminária está intermitente. A manutenção foi avisada e o acesso segue acompanhado pela equipe.',category:'Infraestrutura',severity:'medium',location:'Portaria de serviços',responsible:'Equipe de manutenção',attachmentIds:[]},-4);
   apply('INCIDENT_UPDATE',{id:first.id,status:'in_progress',note:'Equipe de manutenção acionada.'},-3);
   apply('INCIDENT_CREATE',{title:'Atualizar sinalização da recepção',description:'Revisar a orientação de visitantes na recepção durante a troca de turno.',category:'Operação',severity:'low',location:'Recepção',responsible:'Marina Rocha',attachmentIds:[]},-2);

@@ -10,7 +10,6 @@ import {
   Check,
   ChevronRight,
   CircleCheck,
-  Clock3,
   Eye,
   LoaderCircle,
   LogIn,
@@ -20,7 +19,6 @@ import {
   Printer,
   RefreshCw,
   Search,
-  ShieldCheck,
   Truck,
   UserRound,
   Users,
@@ -34,7 +32,7 @@ import { request as fetch } from '../lib/http-client';
 import { accessOverview } from '../lib/physical-access.mjs';
 import { portoPermissions } from '../lib/porto/domain.mjs';
 import { CentralAccess } from './access-panels';
-import { canDecide, PasswordPanel } from './access-support';
+import { PasswordPanel } from './access-support';
 import { AppShell } from './app-shell';
 import { BrandMark } from './brand-mark';
 import { LogisticsPanel } from './logistics-panel';
@@ -70,6 +68,7 @@ import type { OperationAlert, PortalResponse } from './portal-types';
 import { PortoPanel } from './porto-panel';
 import { HttpsRequiredScreen } from './transport-notice';
 import { Button, FormField, PageHeader } from './ui';
+import { VisitorsPanel } from './visitors-panel';
 
 export default function PortApp() {
   const [portoEnabled, setPortoEnabled] = useState(false);
@@ -880,185 +879,7 @@ export default function PortApp() {
           />
         )}
         {page === 'visitors' && (
-          <>
-            <div className="stat-strip visitor-summary">
-              <div className="stat-item">
-                <Users size={19} />
-                <span>
-                  No local<strong>{inside.length}</strong>
-                </span>
-              </div>
-              <div className="stat-item">
-                <Clock3 size={19} />
-                <span>
-                  Aguardando aprovação<strong>{pending.length}</strong>
-                </span>
-              </div>
-              <div className="stat-item">
-                <ShieldCheck size={19} />
-                <span>
-                  Autorizados
-                  <strong>{visitors.filter((r) => r.status === 'authorized').length}</strong>
-                </span>
-              </div>
-            </div>
-            <div className="card visitor-results">
-              <Toolbar
-                query={query}
-                onQuery={setQuery}
-                status={status}
-                onStatus={setStatus}
-                options={[
-                  'pending',
-                  'authorized',
-                  'inside',
-                  'unconfirmed',
-                  'temporarily_out',
-                  'unconfirmed_closed',
-                  'completed',
-                  'denied',
-                  'revoked',
-                  'cancelled',
-                ]}
-                placeholder="Nome, empresa ou final do documento"
-              />
-              <Table
-                stackOnNarrow
-                label="Lista de visitantes"
-                server={{ collection: 'visitors', q: query, status, revision }}
-                rows={visitors.filter(
-                  (r) => match(r, query) && (status === 'all' || r.status === status),
-                )}
-                emptyTitle="Nenhum visitante encontrado"
-                emptyText={
-                  query || status !== 'all'
-                    ? 'Tente outro nome ou ajuste o filtro de situação.'
-                    : 'Use Nova solicitação para registrar uma visita.'
-                }
-                columns={[
-                  {
-                    title: 'Visitante',
-                    render: (r) => (
-                      <div className="avatar-cell">
-                        <span className="initials">{initials(r.name)}</span>
-                        <div className="cell-primary">
-                          {r.name}
-                          <span className="cell-subtle">
-                            {r.company || 'Sem empresa'}
-                            {r.documentLast4 ? ` · doc. final ${r.documentLast4}` : ''}
-                          </span>
-                        </div>
-                      </div>
-                    ),
-                  },
-                  {
-                    title: 'Motivo / responsável',
-                    render: (r) => (
-                      <div>
-                        <span className="visitor-compact-label" aria-hidden="true">
-                          Motivo / responsável
-                        </span>
-                        {r.purpose || '—'}
-                        <span className="cell-subtle">{r.host}</span>
-                      </div>
-                    ),
-                  },
-                  {
-                    title: 'Previsão / validade',
-                    render: (r) => (
-                      <div>
-                        <span className="visitor-compact-label" aria-hidden="true">
-                          Previsão / validade
-                        </span>
-                        {dt(r.expectedAt, tz, true)}
-                        <span className="cell-subtle">Até {dt(r.validUntil, tz, true)}</span>
-                      </div>
-                    ),
-                  },
-                  {
-                    title: 'Situação',
-                    render: (r) => (
-                      <Status
-                        value={r.status}
-                        facePending={
-                          r.initialAccessScope === 'gate_only' && r.status === 'authorized'
-                        }
-                      />
-                    ),
-                  },
-                  {
-                    title: 'Ações',
-                    render: (r) => (
-                      <div className="row-actions">
-                        <Action
-                          icon={Eye}
-                          label="Detalhes do visitante"
-                          compactLabel="Detalhes"
-                          onClick={() => open('detail', r, 'visitors')}
-                        />
-                        {r.status === 'pending' && canDecide(user, r) && (
-                          <Action
-                            icon={Check}
-                            label="Autorizar acesso"
-                            compactLabel="Autorizar"
-                            disabled={disabled}
-                            onClick={() => open('confirm', r, 'VISITOR_APPROVE')}
-                          />
-                        )}{' '}
-                        {r.status === 'pending' && canDecide(user, r, 'VISITOR_REJECT') && (
-                          <Action
-                            icon={X}
-                            label="Recusar solicitação"
-                            compactLabel="Recusar"
-                            disabled={disabled}
-                            danger
-                            onClick={() => open('reason', r, 'VISITOR_REJECT')}
-                          />
-                        )}{' '}
-                        {r.status === 'authorized' && allowed(user, 'VISITOR_CHECKIN') && (
-                          <Action
-                            icon={LogIn}
-                            label="Registrar entrada"
-                            compactLabel="Registrar entrada"
-                            disabled={disabled}
-                            onClick={() => open('confirm', r, 'VISITOR_CHECKIN')}
-                          />
-                        )}{' '}
-                        {r.status === 'inside' && allowed(user, 'VISITOR_CHECKOUT') && (
-                          <Action
-                            icon={LogOut}
-                            label="Registrar saída"
-                            compactLabel="Registrar saída"
-                            disabled={disabled}
-                            onClick={() => open('confirm', r, 'VISITOR_CHECKOUT')}
-                          />
-                        )}{' '}
-                        {r.status === 'authorized' && canDecide(user, r, 'VISITOR_REVOKE') && (
-                          <Action
-                            icon={Ban}
-                            label="Revogar autorização"
-                            compactLabel="Revogar"
-                            disabled={disabled}
-                            danger
-                            onClick={() => open('reason', r, 'VISITOR_REVOKE')}
-                          />
-                        )}{' '}
-                        {r.status === 'pending' && allowed(user, 'VISITOR_CANCEL') && (
-                          <Action
-                            icon={Ban}
-                            label="Cancelar solicitação"
-                            compactLabel="Cancelar"
-                            disabled={disabled}
-                            onClick={() => open('reason', r, 'VISITOR_CANCEL')}
-                          />
-                        )}
-                      </div>
-                    ),
-                  },
-                ]}
-              />
-            </div>
-          </>
+          <VisitorsPanel {...{ visitors, revision, tz, user, disabled, open }} />
         )}
         {page === 'vehicles' && (
           <>
@@ -1313,6 +1134,9 @@ export default function PortApp() {
             open={open}
             user={user}
             revision={revision}
+            openPorto={
+              portoEnabled && portoPermissions(user).view ? () => navigate('porto') : undefined
+            }
           />
         )}
         {page === 'audit' && capability(user, 'auditView') && (

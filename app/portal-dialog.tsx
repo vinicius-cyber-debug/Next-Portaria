@@ -23,6 +23,7 @@ import React, { useRef, useState } from 'react';
 import { request as fetch } from '../lib/http-client';
 import type { SessionUser } from '../lib/operational-types';
 import { PASSWORD_MIN_LENGTH } from '../lib/password-policy.mjs';
+import { getReportDefinition } from '../lib/report-catalog.mjs';
 import { personCategories } from './access-panels';
 import { canDecide, useApprovers } from './access-support';
 import { BrandMark } from './brand-mark';
@@ -1278,18 +1279,19 @@ export function OperationDialog({
             <h2>
               {kind === 'contingency'
                 ? 'Lista de presentes e contingência'
-                : ({ visitors: 'Visitantes', vehicles: 'Veículos' } as Record<string, string>)[
-                    reportKind
-                  ]}
+                : (getReportDefinition(reportKind)?.label ?? 'Relatório da operação')}
             </h2>
             <p>
               Gerado em {dt(new Date().toISOString(), tz)} · {tz}
             </p>
-            {r.from && (
+            {(r.from || r.to) && (
               <p>
-                Período: {r.from} até {r.to || 'hoje'}
+                {r.from && 'Desde ' + r.from.split('-').reverse().join('/')}
+                {r.from && r.to && ' · '}
+                {r.to && 'Até ' + r.to.split('-').reverse().join('/')}
               </p>
             )}
+            {kind === 'print-report' && r.description && <p>{r.description}</p>}
           </div>
           {kind === 'contingency' ? (
             <>
@@ -1345,7 +1347,10 @@ export function OperationDialog({
               />
             </>
           ) : (
-            <PrintTable rows={reportRows} columns={reportColumns(reportKind, tz)} />
+            <PrintTable
+              rows={reportRows}
+              columns={reportColumns(reportKind, tz, user.capabilities)}
+            />
           )}
           <div className="print-fineprint">
             Acesso restrito. Guarde este documento de acordo com a política de dados pessoais da

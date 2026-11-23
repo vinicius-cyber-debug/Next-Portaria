@@ -256,7 +256,7 @@ export function match(r: Row, q: string) {
   );
 }
 
-export function download(name: string, content: string, type: string) {
+export function download(name: string, content: BlobPart, type: string) {
   const url = URL.createObjectURL(new Blob([content], { type })),
     a = document.createElement('a');
   a.href = url;
@@ -332,14 +332,12 @@ export function Empty({
 export function Action({
   icon: Icon,
   label,
-  compactLabel,
   onClick,
   disabled,
   danger = false,
 }: {
   icon: typeof Anchor;
   label: string;
-  compactLabel?: string;
   onClick: () => void;
   disabled?: boolean;
   danger?: boolean;
@@ -354,7 +352,6 @@ export function Action({
       onClick={onClick}
     >
       <Icon size={16} aria-hidden="true" />
-      {compactLabel && <span className="visitor-compact-label">{compactLabel}</span>}
     </button>
   );
 }

@@ -5,6 +5,7 @@ import { assertVisitEligibility } from '../lib/physical-access.mjs';
 import { createDemoSeed, DEMO_USERS } from './seed.mjs';
 import {jpegDimensions} from '../lib/visitor-photo.mjs';
 import {demoMonitor} from './monitor.mjs';
+import {allowedReportColumns,getReportDefinition,projectReportRecord,reportCsv} from '../lib/report-catalog.mjs';
 
 const ORIGIN='https://demo.next-portaria.invalid';
 const json=(value,status=200)=>Response.json(value,{status,headers:{'Cache-Control':'no-store'}});
@@ -12,21 +13,28 @@ const error=(message='Esta ação não está disponível na demonstração. Nenh
 const normalize=value=>String(value??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
 const clone=value=>structuredClone(value);
 
-function filteredRecords(state,query) {
-  const collection=query.get('collection')||query.get('kind')||'visitors';
+function filteredRecords(state,query,collection,report) {
   assertActiveCollection(collection);
   if(!Array.isArray(state[collection]))throw new Error('Coleção de demonstração inválida.');
   let rows=[...state[collection]];
-  for(const name of ['status','personId','areaId','gateName','category']) {
+  for(const name of ['status','personId','areaId','gateName','category','severity','shift','fleetId']) {
     const value=query.get(name);
     if(value&&value!=='all')rows=rows.filter(row=>row[name]===value);
   }
   const q=normalize(query.get('q')),company=normalize(query.get('company'));
   if(q)rows=rows.filter(row=>normalize(Object.values(row).filter(value=>typeof value!=='object').join(' ')).includes(q));
   if(company)rows=rows.filter(row=>normalize(row.company).includes(company));
-  const dateOf=row=>row.requestedAt||row.entryAt||row.startedAt||row.createdAt||row.updatedAt||row.at||'';
-  if(query.get('from'))rows=rows.filter(row=>dateOf(row).slice(0,10)>=query.get('from'));
-  if(query.get('to'))rows=rows.filter(row=>dateOf(row).slice(0,10)<=query.get('to'));
+  const dateOf=report? row=>String(row[report.dateField]??'') : row=>row.requestedAt||row.entryAt||row.startedAt||row.createdAt||row.updatedAt||row.at||'';
+  const from=query.get('from'),to=query.get('to');
+  if(from||to) {
+    const format=new Intl.DateTimeFormat('sv-SE',{timeZone:state.settings.timezone,year:'numeric',month:'2-digit',day:'2-digit'});
+    rows=rows.filter(row=>{
+      const at=new Date(dateOf(row));
+      if(Number.isNaN(+at))return false;
+      const day=format.format(at);
+      return (!from||day>=from)&&(!to||day<=to);
+    });
+  }
   return rows.sort((a,b)=>dateOf(b).localeCompare(dateOf(a))||a.id.localeCompare(b.id));
 }
 
@@ -60,9 +68,12 @@ export function createDemoApi({now=()=>new Date().toISOString(),origin=ORIGIN}={
       if(method==='GET'&&path==='/state')return json(snapshot());
       if(method==='GET'&&path==='/sync')return json(Number(query.get('since'))===revision?{revision,user:clone(actor),capabilities:actor.capabilities,unchanged:true}:{...snapshot(),reset:true});
       if(method==='GET'&&path==='/records') {
-        const rows=filteredRecords(snapshot().state,query),page=Number(query.get('page')||1),pageSize=Number(query.get('pageSize')||20);
+        const visible=snapshot().state, collection=query.get('collection')||'visitors', report=getReportDefinition(collection);
+        if(query.get('report')==='true'&&!report)return error('Tipo de relatório inválido.');
+        const isReport=query.get('report')==='true', rows=filteredRecords(visible,query,collection,isReport?report:null),page=Number(query.get('page')||1),pageSize=Number(query.get('pageSize')||20);
         if(!Number.isSafeInteger(page)||page<1||!Number.isSafeInteger(pageSize)||pageSize<1||pageSize>100)return error('Paginação inválida.');
-        return json({rows:rows.slice((page-1)*pageSize,page*pageSize),total:rows.length,totalPages:Math.max(1,Math.ceil(rows.length/pageSize)),page,pageSize});
+        const slice=rows.slice((page-1)*pageSize,page*pageSize);
+        return json({rows:isReport?reportRows(visible,collection,slice,allowedReportColumns(report,actor.capabilities)):slice,total:rows.length,totalPages:Math.ceil(rows.length/pageSize),page,pageSize});
       }
       if(method==='GET'&&path==='/approvers')return json({users:clone(DEMO_USERS.filter(user=>['admin','director'].includes(user.role)))});
       if(method==='GET'&&path==='/users')return json({users:clone(DEMO_USERS),invites:[]});
@@ -99,10 +110,10 @@ export function createDemoApi({now=()=>new Date().toISOString(),origin=ORIGIN}={
         assertVisitEligibility(state,visitor,now());return json({pass:clone(pass),visitor:clone(visitor),demo:true});
       }
       if(method==='GET'&&path==='/exports') {
-        if(!['visitors','vehicles'].includes(query.get('kind')))return error('Escolha um relatório de pessoas ou veículos.');
-        const kind=query.get('kind'),fields=kind==='visitors'?['name','company','purpose','host','status','enteredAt','leftAt']:['plate','driver','company','purpose','status','entryAt','exitAt'];
-        const quote=value=>'"'+(/^[\s]*[=+@-]/.test(String(value??''))?"'":'')+String(value??'').replaceAll('"','""')+'"';
-        const rows=filteredRecords(snapshot().state,query),csv=[fields,...rows.map(row=>fields.map(field=>row[field]))].map(row=>row.map(quote).join(',')).join('\r\n');
+        const visible=snapshot().state,kind=query.get('kind')||'visitors',report=getReportDefinition(kind);
+        if(!report)return error('Tipo de relatório inválido.');
+        const columns=allowedReportColumns(report,actor.capabilities);
+        const csv=reportCsv(columns,reportRows(visible,kind,filteredRecords(visible,query,kind,report),columns));
         return new Response(csv,{headers:{'Content-Type':'text/csv; charset=utf-8','Cache-Control':'no-store'}});
       }
       return error();
@@ -115,4 +126,9 @@ export function createDemoApi({now=()=>new Date().toISOString(),origin=ORIGIN}={
     request,
     reset(){state=createDemoSeed(now());revision=1;passes.clear();readNotices.clear();commands.clear();},
   };
+}
+
+function reportRows(state,collection,rows,columns) {
+  const areas=new Map(state.accessAreas.map(area=>[area.id,area.name]));
+  return rows.map(row=>projectReportRecord(collection,row,columns,areas));
 }

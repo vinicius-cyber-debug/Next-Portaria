@@ -10,6 +10,12 @@ import type {
   Snapshot,
 } from './operational-types.ts';
 import type { Database as D1Database, QueryResult as D1Result } from './persistence/contracts.ts';
+import {
+  allowedReportColumns,
+  getReportDefinition,
+  projectReportRecord,
+  reportCsv,
+} from './report-catalog.mjs';
 
 type Row = Record<string, unknown>;
 type RecordDelta = { upsert: StoredRecord[]; remove: string[] };
@@ -252,24 +258,24 @@ function midnight(day: string, timezone: string) {
   }
   return new Date(candidate).toISOString();
 }
-export async function pagedRecords(db: D1Database, user: SessionUser, query: URLSearchParams) {
-  const collection = query.get('collection') ?? 'visitors';
+function reportDefinition(collection: string) {
+  assertActiveCollection(collection);
+  return getReportDefinition(collection) ?? invalid('Tipo de relatório inválido.');
+}
+
+async function recordSelection(
+  db: D1Database,
+  user: SessionUser,
+  query: URLSearchParams,
+  collection: string,
+  report?: ReturnType<typeof reportDefinition>,
+) {
   assertActiveCollection(collection);
   if (![...COLLECTIONS, 'audit'].includes(collection)) invalid('Coleção de registros inválida.');
   if (collection === 'audit' && !user.capabilities?.auditView)
     throw Object.assign(new Error('Seu acesso não permite consultar a auditoria.'), {
       code: 'FORBIDDEN',
     });
-  const page = Number(query.get('page') ?? 1),
-    pageSize = Number(query.get('pageSize') ?? 20);
-  if (
-    !Number.isSafeInteger(page) ||
-    page < 1 ||
-    !Number.isSafeInteger(pageSize) ||
-    pageSize < 1 ||
-    pageSize > 100
-  )
-    invalid('Paginação inválida. Use páginas de 1 a 100 registros.');
   const table = collection === 'audit' ? 'operational_audit' : 'operational_records',
     where: string[] = [],
     args: unknown[] = [];
@@ -292,6 +298,11 @@ export async function pagedRecords(db: D1Database, user: SessionUser, query: URL
   exact('responsibleUserId');
   exact('gateName');
   exact('category');
+  if (report) {
+    exact('severity');
+    exact('shift');
+    exact('fleetId');
+  }
   const q = query.get('q') ?? '',
     company = query.get('company') ?? '';
   if (q.length > 200 || company.length > 200) invalid('Filtro muito longo.');
@@ -313,6 +324,18 @@ export async function pagedRecords(db: D1Database, user: SessionUser, query: URL
       'description',
       'destination',
       'responsible',
+      ...(report
+        ? [
+            'location',
+            'vehicleName',
+            'vehiclePlate',
+            'shift',
+            'summary',
+            'pending',
+            'createdBy',
+            'startedBy',
+          ]
+        : []),
       ...(user.capabilities?.documentView ? ['documentLast4', 'invoiceNumber'] : []),
     ];
     where.push(
@@ -337,7 +360,7 @@ export async function pagedRecords(db: D1Database, user: SessionUser, query: URL
       fleetTrips: 'departedAt',
       materialExits: 'createdAt',
     },
-    timeField = timeFields[collection] ?? 'updatedAt';
+    timeField = report?.dateField ?? timeFields[collection] ?? 'updatedAt';
   const from = dateValue(query.get('from')),
     to = dateValue(query.get('to'));
   if (from && to && from > to) invalid('O início do período deve ser anterior ao fim.');
@@ -358,24 +381,95 @@ export async function pagedRecords(db: D1Database, user: SessionUser, query: URL
       args.push(midnight(following.toISOString().slice(0, 10), tz));
     }
   }
-  const predicate = where.length ? ' WHERE ' + where.join(' AND ') : '',
+  return {
+    table,
+    predicate: where.length ? ' WHERE ' + where.join(' AND ') : '',
+    order: `ORDER BY COALESCE(json_extract(body,'$.${timeField}'),'') DESC,rowid DESC`,
+    args,
+  };
+}
+
+function reportAreas(db: D1Database, collection: string) {
+  return collection === 'visitors'
+    ? [stmt(db, "SELECT id,body FROM operational_records WHERE collection='accessAreas'")]
+    : [];
+}
+
+function projectReportRows(
+  collection: string,
+  result: D1Result,
+  areas: D1Result | undefined,
+  columns: ReturnType<typeof allowedReportColumns>,
+) {
+  const areaNames = new Map(
+    (areas ? (rows(areas) as { id: string; body: string }[]) : []).map(({ id, body }) => [
+      id,
+      JSON.parse(body).name,
+    ]),
+  );
+  return (rows(result) as StoredBody[]).map(({ body }) =>
+    projectReportRecord(collection, JSON.parse(body), columns, areaNames),
+  );
+}
+
+export async function exportReportCsv(db: D1Database, user: SessionUser, query: URLSearchParams) {
+  const collection = query.get('kind') ?? 'visitors',
+    report = reportDefinition(collection),
+    { table, predicate, order, args } = await recordSelection(db, user, query, collection, report),
+    columns = allowedReportColumns(report, user.capabilities),
+    [data, areas] = await db.batch([
+      stmt(db, `SELECT body FROM ${table}${predicate} ${order}`, ...args),
+      ...reportAreas(db, collection),
+    ]);
+  return reportCsv(columns, projectReportRows(collection, data, areas, columns));
+}
+
+export async function pagedRecords(db: D1Database, user: SessionUser, query: URLSearchParams) {
+  const collection = query.get('collection') ?? 'visitors',
+    report = query.get('report') === 'true' ? reportDefinition(collection) : undefined,
+    page = Number(query.get('page') ?? 1),
+    pageSize = Number(query.get('pageSize') ?? 20);
+  if (
+    !Number.isSafeInteger(page) ||
+    page < 1 ||
+    !Number.isSafeInteger(pageSize) ||
+    pageSize < 1 ||
+    pageSize > 100 ||
+    !Number.isSafeInteger((page - 1) * pageSize)
+  )
+    invalid('Paginação inválida. Use páginas de 1 a 100 registros.');
+  const { table, predicate, order, args } = await recordSelection(
+      db,
+      user,
+      query,
+      collection,
+      report,
+    ),
     result = await db.batch([
       stmt(db, `SELECT COUNT(*) AS total FROM ${table}${predicate}`, ...args),
       stmt(
         db,
-        `SELECT body FROM ${table}${predicate} ORDER BY COALESCE(json_extract(body,'$.${timeField}'),'') DESC,rowid DESC LIMIT ? OFFSET ?`,
+        `SELECT body FROM ${table}${predicate} ${order} LIMIT ? OFFSET ?`,
         ...args,
         pageSize,
         (page - 1) * pageSize,
       ),
       stmt(db, 'SELECT revision FROM operational_meta WHERE id=1'),
+      ...(report ? reportAreas(db, collection) : []),
     ]);
   const total = Number((rows(result[0])[0] as Row).total);
   return {
-    rows: redactValue(
-      (rows(result[1]) as StoredBody[]).map((r) => JSON.parse(r.body)),
-      user.capabilities,
-    ),
+    rows: report
+      ? projectReportRows(
+          collection,
+          result[1],
+          result[3],
+          allowedReportColumns(report, user.capabilities),
+        )
+      : redactValue(
+          (rows(result[1]) as StoredBody[]).map((r) => JSON.parse(r.body)),
+          user.capabilities,
+        ),
     total,
     page,
     pageSize,

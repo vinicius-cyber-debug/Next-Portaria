@@ -28,12 +28,7 @@ import {
   validUsername,
   verifyPassword,
 } from './local-auth.ts';
-import {
-  ACTIVE_ROLES,
-  assertActiveCollection,
-  assertActiveCommand,
-  moduleRemoved,
-} from './module-policy.mjs';
+import { ACTIVE_ROLES, assertActiveCommand, moduleRemoved } from './module-policy.mjs';
 import type { PersonRecord, OperationalState, Role } from './operational-types.ts';
 import { isRecord } from './operational-types.ts';
 import type {
@@ -47,6 +42,7 @@ import type {
 import { validateDirectoryPerson } from './person-directory.mjs';
 import { assertVisitEligibility } from './physical-access.mjs';
 import {
+  exportReportCsv,
   operationalVisible,
   pagedRecords,
   readOperationalSnapshot,
@@ -911,82 +907,6 @@ async function assertRestoreAttachments(
       }),
     );
 }
-function csvValue(value: unknown) {
-  const s = String(value ?? '');
-  return '"' + (/^[\s]*[=+@-]/.test(s) ? "'" + s : s).replace(/"/g, '""') + '"';
-}
-function exportCsv(request: Request, state: State, user: User) {
-  requireCapability(user, 'dataExport');
-  const q = new URL(request.url).searchParams,
-    kind = q.get('kind') ?? 'visitors';
-  assertActiveCollection(kind);
-  if (!['visitors', 'vehicles'].includes(kind)) reject('VALIDATION', 'Tipo de relatório inválido.');
-  const from = q.get('from') ?? '',
-    to = q.get('to') ?? '';
-  if ([from, to].some((v) => v && !/^\d{4}-\d{2}-\d{2}$/.test(v)))
-    reject('VALIDATION', 'Período inválido.');
-  const company = (q.get('company') ?? '').toLocaleLowerCase('pt-BR'),
-    status = q.get('status') ?? 'all';
-  const timeField: Record<string, string> = {
-    visitors: 'requestedAt',
-    vehicles: 'entryAt',
-  };
-  const fields: Record<string, string[]> = {
-    visitors: ['name', 'company', 'purpose', 'host', 'expectedAt', 'enteredAt', 'leftAt', 'status'],
-    vehicles: ['plate', 'driver', 'company', 'purpose', 'gateName', 'entryAt', 'exitAt', 'status'],
-  };
-  const labels: Record<string, string> = {
-    name: 'Visitante',
-    company: 'Empresa',
-    purpose: 'Motivo',
-    host: 'Responsável',
-    expectedAt: 'Previsão',
-    enteredAt: 'Entrada',
-    leftAt: 'Saída',
-    status: 'Situação',
-    plate: 'Placa',
-    driver: 'Motorista',
-    gateName: 'Portaria',
-    entryAt: 'Entrada',
-    exitAt: 'Saída',
-  };
-  const data = (state as unknown as Record<string, Record<string, unknown>[]>)[kind].filter(
-    (row) => {
-      const at = row[timeField[kind]],
-        date = at
-          ? new Intl.DateTimeFormat('sv-SE', {
-              timeZone: state.settings.timezone,
-              year: 'numeric',
-              month: '2-digit',
-              day: '2-digit',
-            }).format(new Date(String(at)))
-          : '';
-      return (
-        (!from || date >= from) &&
-        (!to || date <= to) &&
-        (!company ||
-          String(row.company ?? row.client ?? '')
-            .toLocaleLowerCase('pt-BR')
-            .includes(company)) &&
-        (status === 'all' || row.status === status)
-      );
-    },
-  );
-  const contents =
-    '\uFEFF' +
-    [
-      fields[kind].map((k) => csvValue(labels[k])).join(';'),
-      ...data.map((row) => fields[kind].map((k) => csvValue(row[k])).join(';')),
-    ].join('\r\n');
-  return new Response(contents, {
-    headers: {
-      ...JSON_HEADERS,
-      'Content-Type': 'text/csv; charset=utf-8',
-      'Content-Disposition': `attachment; filename="porto-${kind}-${new Date().toISOString().slice(0, 10)}.csv"`,
-    },
-  });
-}
-
 /** Entrada única para rotas /api; não recebe papéis ou identidade do corpo enviado pelo navegador. */
 export async function handleApi(
   request: Request,
@@ -1338,8 +1258,18 @@ export async function handleApi(
         result,
       });
     }
-    if (path === '/api/exports' && request.method === 'GET')
-      return exportCsv(request, (await readSnapshot(db)).state, user);
+    if (path === '/api/exports' && request.method === 'GET') {
+      requireCapability(user, 'dataExport');
+      const query = new URL(request.url).searchParams;
+      const csv = await exportReportCsv(db, user, query);
+      return new Response(csv, {
+        headers: {
+          ...JSON_HEADERS,
+          'Content-Type': 'text/csv; charset=utf-8',
+          'Content-Disposition': `attachment; filename="porto-${query.get('kind') ?? 'visitors'}-${new Date().toISOString().slice(0, 10)}.csv"`,
+        },
+      });
+    }
     if (path === '/api/passes/issue' && request.method === 'POST') {
       requireCapability(user, 'dataExport');
       if (!(

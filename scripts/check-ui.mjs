@@ -149,6 +149,19 @@ try{
     await expect(firstVisitor).toHaveCSS('display','grid');
     await expect.poll(()=>results.evaluate(list=>list.scrollWidth-list.clientWidth)).toBeLessThanOrEqual(1);
     await expect(firstVisitor.getByText('Detalhes',{exact:true})).toBeVisible();
+    const inside=page.getByRole('button',{name:/^No local/});
+    const authorized=page.getByRole('button',{name:/^Autorizados/});
+    const situation=page.getByLabel('Filtrar por situação',{exact:true});
+    await inside.click();
+    await expect(inside).toHaveAttribute('aria-pressed','true');
+    await expect(situation).toHaveValue('inside');
+    await expect(firstVisitor.getByRole('button',{name:'Registrar saída',exact:true})).toHaveClass(/\bprimary\b/);
+    await authorized.click();
+    await expect(inside).toHaveAttribute('aria-pressed','false');
+    await expect(situation).toHaveValue('authorized');
+    await expect(firstVisitor.getByRole('button',{name:'Registrar entrada',exact:true})).toHaveClass(/\bprimary\b/);
+    await authorized.click();
+    await expect(situation).toHaveValue('all');
    }
    if(pageName==='Veículos'&&(width===1366||width===390)){
     await page.getByLabel('Entrada desde',{exact:true}).fill('2099-01-01');
