@@ -2,7 +2,7 @@
 
 Este pacote prepara a execução no servidor; sua publicação não instala nem altera o servidor remotamente. A referência desta instalação é Windows Server 2019, IP `192.168.0.2`, HTTPS `8443`, rede `192.168.0.0/24`. Confirme esses dados na inspeção. O destino externo de backup ainda precisa ser definido pela empresa.
 
-Na candidata `0.8.0-rc.1`, Gestão do Porto inclui cobrança por acesso, adiantamentos e saída quitada. Leia [as regras](GESTAO-PORTO.md) e execute o [aceite empresarial](HOMOLOGACAO-PORTO.md). O instalador exige `-Homologacao` para versões `-rc.N`; esse sinalizador não comprova o aceite nem autoriza utilizar a base operacional em testes. As tarefas e o serviço possuem nomes reservados: não tente instalar uma segunda instância paralela na mesma máquina sem planejar esses nomes e a infraestrutura.
+As candidatas `-rc.N` exigem `-Homologacao` na verificação do instalador e na instalação de homologação. Use uma instalação isolada com dados de teste. As tarefas e o serviço têm nomes reservados. Planeje a infraestrutura antes de preparar outra instância na mesma máquina. Gestão do Porto inclui cobrança por acesso, adiantamentos e saída quitada e aguarda o aceite da empresa. [Notas da candidata atual](RELEASE-0.8.0-rc.2.md) · [Aceite de Gestão do Porto](HOMOLOGACAO-PORTO.md)
 
 ## Pré-requisitos
 
@@ -33,7 +33,7 @@ $parametros = @{
 .\server\INSTALAR-SERVIDOR.ps1 @parametros -PreflightOnly
 ```
 
-**Substitua os exemplos de compartilhamento e confirme os nomes reais dos PEM. Não existe destino padrão.** O preflight confere sistema, ferramentas, portas, instalação anterior, compartilhamentos, certificado e integridade do pacote. As sondagens de escrita criam e removem apenas um arquivo de teste em cada compartilhamento.
+Substitua os exemplos pelos compartilhamentos e arquivos PEM reais. Ambos os destinos UNC precisam existir para executar `-PreflightOnly`. Em uma candidata, acrescente `-Homologacao` ao comando. O preflight confere sistema, ferramentas, portas, instalação anterior, compartilhamentos, certificado e integridade do pacote. As sondagens de escrita criam e removem apenas um arquivo de teste em cada compartilhamento. Enquanto os destinos estiverem pendentes, use a inspeção somente leitura `VERIFICAR-SERVIDOR.ps1`.
 
 Se houver banco legado, acrescente antes da instalação os caminhos reais encontrados na inspeção:
 

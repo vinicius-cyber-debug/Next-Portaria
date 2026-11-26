@@ -10,7 +10,7 @@ O Next Portaria reúne autorizações, pessoas, visitantes e veículos em uma op
 
 A versão `0.7.0` usa **PostgreSQL 17**, arquivos privados fora do código e envio de fotos e vídeos com retomada nas ocorrências. Consulte [PostgreSQL e recuperação](docs/POSTGRESQL.md), [vídeos e retenção](docs/MIDIAS.md) e [implantação no Windows Server](docs/IMPLANTACAO-SERVIDOR.md). A demonstração permanece uma referência visual.
 
-A candidata `0.8.0-rc.1` acrescenta a [Gestão do Porto](docs/GESTAO-PORTO.md): tarifa por acesso, solicitações, aprovação, adiantamentos, saída quitada com cobrança atômica, recibos, ajustes, indicadores e caixa. O módulo permanece desativado por padrão e aguarda [homologação empresarial](docs/HOMOLOGACAO-PORTO.md). Dados anteriores por diária conservam sua regra e tarifa; a migração não publica preços automaticamente.
+A candidata [`0.8.0-rc.2`](docs/RELEASE-0.8.0-rc.2.md) reúne a atualização de Visitantes, os relatórios operacionais, a frota própria, a saída de materiais e a configuração de leitura do Control iD. A [Gestão do Porto](docs/GESTAO-PORTO.md) permanece desativada por padrão e aguarda [homologação empresarial](docs/HOMOLOGACAO-PORTO.md). Dados anteriores por diária conservam sua regra e tarifa.
 
 Em desenvolvimento: [setores, líderes e liberação individual de saída](docs/LIBERACAO-SAIDA.md), com janela de 15 minutos, revogação, histórico e serviço integrado ao servidor. A conexão física permanece desativada até homologação acompanhada; vincular funcionários aos setores não altera permissões nas catracas.
 
