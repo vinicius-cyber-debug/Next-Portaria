@@ -1,12 +1,15 @@
-import type { Metadata } from "next";
-import "./globals.css";
+import type { Metadata } from 'next';
+import './globals.css';
+import './portal-shell.css';
+import './portal-surfaces.css';
+import './portal-screen-details.css';
 
 export const metadata: Metadata = {
-  title: "Next Portaria | Portaria e controle de acesso",
-  description: "Gestão de portaria, pessoas, visitantes, veículos e controle de acesso.",
+  title: 'Next Portaria | Portaria e controle de acesso',
+  description: 'Gestão de portaria, pessoas, visitantes, veículos e controle de acesso.',
   icons: {
-    icon: "/next-portaria-icon.svg",
-    shortcut: "/next-portaria-icon.svg",
+    icon: '/next-portaria-icon.svg',
+    shortcut: '/next-portaria-icon.svg',
   },
 };
 
@@ -21,4 +24,3 @@ export default function RootLayout({
     </html>
   );
 }
-

@@ -1,16 +1,13 @@
-import test from 'node:test';
 import assert from 'node:assert/strict';
-import {readFileSync,readdirSync} from 'node:fs';
-import {DatabaseSync} from 'node:sqlite';
-import {handleApi} from '../lib/server.ts';
-import {hashPassword,verifyPassword} from '../lib/local-auth.ts';
+import { readFileSync,readdirSync } from 'node:fs';
+import { DatabaseSync } from 'node:sqlite';
+import test from 'node:test';
+import { hashPassword,verifyPassword } from '../lib/local-auth.ts';
+import { handleApi } from '../lib/server.ts';
+import { SqliteTestDatabase as D1 } from './support/sqlite-fixture.mjs';
 
-class D1 {
-  constructor(){this.sqlite=new DatabaseSync(':memory:');const dir=new URL('../drizzle/',import.meta.url);for(const file of readdirSync(dir).filter(p=>p.endsWith('.sql')).sort())this.sqlite.exec(readFileSync(new URL(file,dir),'utf8'));}
-  prepare(sql){const owner=this;return {sql,params:[],bind(...params){return {...this,params};},async first(){const row=owner.sqlite.prepare(this.sql).get(...this.params)??null;if(owner.afterRead&&owner.readMatch?.test(this.sql)){const hook=owner.afterRead;owner.afterRead=null;hook();}return row;},async all(){return {results:owner.sqlite.prepare(this.sql).all(...this.params),success:true};},async run(){const result=owner.sqlite.prepare(this.sql).run(...this.params);return {results:[],success:true,meta:{changes:Number(result.changes)}};}};}
-  async batch(statements){this.sqlite.exec('BEGIN');try{const result=statements.map(s=>({results:this.sqlite.prepare(s.sql).all(...s.params),success:true}));this.sqlite.exec('COMMIT');return result;}catch(error){this.sqlite.exec('ROLLBACK');throw error;}}
-}
-const url='http://127.0.0.1:5173',initialPassword='Senha-inicial-forte-123!',nextPassword='Minha-senha-pessoal-456!',resetPassword='Redefinida-admin-789!';
+
+const url='http://127.0.0.1:5173',initialPassword='Senha-inicial-forte-123!',nextPassword='Nova!823',resetPassword='Reset!82';
 async function call(db,path,body,cookie=''){
  const post=body!==undefined,headers={};if(cookie)headers.cookie=cookie;
  if(post){headers['Content-Type']='application/json';headers.Origin=url;}

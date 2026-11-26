@@ -1,5 +1,15 @@
 # Notas das versões
 
+## 0.8.0-rc.2 — operação móvel e relatórios
+
+- Indicadores de Visitantes filtram a lista e destacam a ação de entrada ou saída.
+- Oito relatórios operacionais com filtros por tipo, impressão e CSV conforme as permissões.
+- Frota própria com hodômetro e vistorias privadas. Saída de materiais com nota fiscal.
+- Configuração de leitura do Control iD e monitor de eventos. Liberação individual de saída pronta para homologação.
+- Migrações PostgreSQL de liberação individual e mídias da frota. A atualização exige cópia externa verificada antes das migrações.
+
+[Notas e instruções da candidata](RELEASE-0.8.0-rc.2.md)
+
 ## 0.7.0 — mídias privadas e pacote de servidor
 
 - Fotos e vídeos em ocorrências com partes de 5 MiB, SHA-256, pausa e retomada após recarga.

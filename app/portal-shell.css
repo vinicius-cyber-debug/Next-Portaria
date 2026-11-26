@@ -1,0 +1,333 @@
+@media screen {
+  :root {
+    --background: #f4f6f8;
+    --foreground: #18283b;
+    --ink: #18283b;
+    --text-secondary: #53657b;
+    --muted-foreground: #53657b;
+    --border: #dce3ea;
+    --input: #bdcad7;
+    --primary: #214f9d;
+    --blue: #214f9d;
+    --ring: #214f9d;
+    --radius-control: 7px;
+    --radius-card: 10px;
+    --shadow-sm: none;
+    --duration: 150ms;
+  }
+
+  :is(button, a, input, textarea, select, [tabindex]):focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 3px;
+  }
+
+  :is(.input, .select, .textarea):focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: -2px;
+  }
+
+  .app-shell .sidebar {
+    color: var(--ink);
+    background: #fff;
+    border-inline-end: 1px solid var(--border);
+  }
+
+  .app-shell .sidebar-brand-row {
+    margin-block-end: 18px;
+  }
+
+  .app-shell .sidebar .brand {
+    color: var(--ink);
+  }
+
+  .app-shell .brand-icon {
+    color: var(--primary);
+    background: #f1f5fd;
+    border-color: #d8e3f4;
+    border-radius: 8px;
+    box-shadow: none;
+  }
+
+  .app-shell .brand-word {
+    font-size: 26px;
+    font-weight: 760;
+  }
+
+  .app-shell .brand-word > span {
+    color: var(--text-secondary);
+    font-weight: 650;
+    letter-spacing: 1.6px;
+    margin-block-start: 2px;
+  }
+
+  .app-shell .sidebar-unit {
+    margin-inline: 2px;
+    margin-block-end: 15px;
+    padding: 9px 8px;
+    min-height: 36px;
+    color: var(--text-secondary);
+    background: #f5f7fa;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+  }
+
+  .app-shell .sidebar-unit > svg {
+    flex: none;
+    color: var(--primary);
+  }
+
+  .app-shell .sidebar .nav-label {
+    margin: 14px 0 5px;
+    color: var(--text-secondary);
+    letter-spacing: 0.08em;
+  }
+
+  .app-shell .sidebar .nav-label:first-child {
+    margin-block-start: 0;
+  }
+
+  .app-shell .sidebar .nav-item {
+    min-height: 38px;
+    margin-block: 1px;
+    padding-block: 7px;
+    border-radius: 6px;
+    color: #394b61;
+    font-weight: 550;
+  }
+
+  .app-shell .sidebar .nav-item:hover {
+    color: var(--ink);
+    background: #f2f5f8;
+  }
+
+  .app-shell .sidebar .nav-item.active {
+    color: #1b468c;
+    background: #eaf0fa;
+    box-shadow: inset 2px 0 0 var(--primary);
+    font-weight: 680;
+  }
+
+  .app-shell .nav-item > svg {
+    flex: none;
+    width: 17px;
+    height: 17px;
+  }
+
+  .app-shell .nav-count {
+    color: #1b468c;
+    background: #e0e9f6;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .app-shell .sidebar-bottom .identity {
+    border-color: var(--border);
+  }
+
+  .app-shell .identity strong {
+    color: var(--ink);
+  }
+
+  .app-shell .identity small,
+  .app-shell .identity .icon-button,
+  .app-shell .drawer-close {
+    color: var(--text-secondary);
+  }
+
+  .app-shell .identity .identity-avatar,
+  .app-shell .top-avatar {
+    background: #edf2fa;
+    border-color: #dce5f2;
+    color: #234e90;
+  }
+
+  .app-shell .sidebar-shade {
+    background: #18283b54;
+    backdrop-filter: none;
+  }
+
+  .app-shell .topbar {
+    background: #fff;
+    border-color: var(--border);
+  }
+
+  .app-shell .breadcrumb,
+  .app-shell .breadcrumb-home {
+    color: var(--text-secondary);
+  }
+
+  .app-shell .global-search {
+    border-color: var(--border);
+    background: #f5f7fa;
+    border-radius: var(--radius-control);
+  }
+
+  .app-shell .global-search:focus-within {
+    border-color: var(--primary);
+    background: #fff;
+    box-shadow: 0 0 0 2px #214f9d17;
+  }
+
+  .app-shell .search-results {
+    border-color: var(--border);
+    border-radius: var(--radius-card);
+    box-shadow: 0 6px 18px #18283b12;
+  }
+
+  .app-shell .search-results button:hover {
+    background: #f0f4fa;
+  }
+
+  .app-shell .environment-banner {
+    align-items: baseline;
+    padding: 7px 12px;
+    border-color: #e6d7ba;
+    border-radius: 6px;
+    background: #fffaf1;
+    color: #6d491f;
+  }
+
+  .app-shell .page-footer {
+    margin-block-start: 24px;
+    border-color: var(--border);
+    color: var(--text-secondary);
+  }
+
+  .auth-screen,
+  .loading-screen {
+    background: var(--background);
+    color: var(--ink);
+  }
+
+  .auth-card {
+    max-width: 404px;
+    padding: clamp(22px, 5vw, 32px);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-card);
+    background: #fff;
+    box-shadow: none;
+  }
+
+  .auth-card .auth-mark,
+  .loading-screen .auth-mark,
+  .password-required > .auth-mark {
+    width: 40px;
+    height: 40px;
+    color: var(--primary);
+    background: #f1f5fd;
+    border: 1px solid #d8e3f4;
+    border-radius: 8px;
+    box-shadow: none;
+  }
+
+  .auth-card .auth-mark {
+    margin-bottom: 14px;
+  }
+
+  .auth-card .auth-brand {
+    display: block;
+    margin: 0 0 4px;
+    color: var(--text-secondary);
+    font-size: 13px;
+    font-weight: 680;
+  }
+
+  .auth-card h1 {
+    color: var(--ink);
+    font-size: 25px;
+    font-weight: 760;
+    line-height: 1.25;
+  }
+
+  .auth-card > p {
+    color: var(--text-secondary);
+    margin-bottom: 20px;
+  }
+
+  .auth-card .button.primary {
+    margin-top: 12px;
+  }
+
+  .auth-card .login-fields > .button.primary {
+    justify-content: center;
+  }
+
+  .modal-overlay,
+  .modal-dialog {
+    animation: none;
+  }
+}
+
+@media screen and (min-width: 1025px) {
+  .app-shell .topbar {
+    height: 61px;
+  }
+}
+
+@media screen and (max-width: 1024px) {
+  .app-shell .sidebar,
+  .app-shell .sidebar .nav-item {
+    min-height: 44px;
+  }
+
+  .app-shell .sidebar.open {
+    box-shadow: 8px 0 28px #18283b18;
+  }
+}
+
+@media screen and (prefers-reduced-motion: no-preference) {
+  .page-content[data-screen] {
+    animation: portal-page-in 150ms ease-out;
+  }
+
+  .modal-overlay,
+  .sidebar-shade {
+    animation: portal-scrim-in 130ms ease-out;
+  }
+
+  .modal-overlay > .modal-dialog {
+    animation: portal-dialog-in 160ms ease-out;
+  }
+
+  .app-shell .nav-item,
+  .app-shell .global-search,
+  .app-shell .top-avatar {
+    transition:
+      color var(--duration) ease,
+      background-color var(--duration) ease,
+      border-color var(--duration) ease;
+  }
+}
+
+@keyframes portal-page-in {
+  from {
+    opacity: 0.9;
+    transform: translateY(3px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes portal-scrim-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes portal-dialog-in {
+  from {
+    opacity: 0.85;
+    transform: translateY(5px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

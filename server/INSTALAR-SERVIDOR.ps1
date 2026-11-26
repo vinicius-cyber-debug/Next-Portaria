@@ -12,7 +12,7 @@ param(
  [string]$Subnet='192.168.0.0/24',
  [int]$Port=8443,[int]$UiPort=5180,[int]$PostgresPort=55432,
  [string]$LegacySqlite,[string]$LegacyStateRoot,
- [switch]$PreflightOnly
+ [switch]$PreflightOnly,[switch]$EnablePorto,[switch]$Homologacao
 )
 $ErrorActionPreference='Stop'
 function Run-Node([string[]]$Arguments){ & $NodePath @Arguments; if($LASTEXITCODE -ne 0){throw 'Comando Node falhou; ativacao interrompida.'} }
@@ -44,6 +44,8 @@ if([Environment]::OSVersion.Version.Major -lt 10){throw 'Windows Server 2019 ou 
 $manifestPath=Join-Path $source 'release-manifest.json'
 if(!(Test-Path -LiteralPath $manifestPath)){throw 'Use um pacote de release, com manifesto.'}
 $manifest=Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
+if($manifest.version -notmatch '^\d+\.\d+\.\d+(-rc\.\d+)?$'){throw 'Versao invalida no manifesto.'}
+if($manifest.version -match '-rc\.' -and !$Homologacao){throw 'Esta release e candidata. Use -Homologacao somente em uma instalacao separada para validacao empresarial.'}
 foreach($file in $manifest.files){$target=[IO.Path]::GetFullPath((Join-Path $source $file.path));if(!$target.StartsWith($source+'\',[StringComparison]::OrdinalIgnoreCase) -or (Get-FileHash -LiteralPath $target -Algorithm SHA256).Hash -ne $file.sha256){throw 'Integridade do pacote divergente.'}}
 $currentPath=Join-Path $InstallRoot 'current.json';$previous=$null
 if(Test-Path -LiteralPath $currentPath){$previous=Get-Content -LiteralPath $currentPath -Raw | ConvertFrom-Json}
@@ -81,6 +83,9 @@ try {
   }
   Run-Node -Arguments @('--experimental-strip-types','scripts/postgres-local.mjs','init','--bin',$PostgresBin,'--data-root',$DataRoot,'--port',"$PostgresPort",'--database','next_portaria')
  }
+ $integrationArguments=@('--experimental-strip-types','scripts/preserve-idsecure-config.mjs','--data-root',$DataRoot)
+ if($previous){$integrationArguments+=@('--previous-root',$previous.root)}
+ Run-Node -Arguments $integrationArguments
  $env:PORTO_DB_PROVIDER='postgres'
  Run-Node -Arguments @('--experimental-strip-types','scripts/postgres-local.mjs','migrate')
  if($LegacySqlite -and !$previous){Run-Node -Arguments @('--experimental-strip-types','scripts/migrate-sqlite-to-postgres.mjs','--offline','--sqlite',$LegacySqlite,'--state-root',$LegacyStateRoot)}
@@ -108,15 +113,19 @@ try {
   if($LASTEXITCODE -ne 0){throw 'Registro do servico PostgreSQL falhou.'}
   Start-Service -Name 'NextPortaria-Postgres'
  }
- $config|Add-Member -NotePropertyName manageCluster -NotePropertyValue $false -Force;Save-Json $config (Join-Path $release '.porto-runtime\postgres.json')
+ $config|Add-Member -NotePropertyName manageCluster -NotePropertyValue $false -Force
+ $config|Add-Member -NotePropertyName runtimeProfile -NotePropertyValue 'server' -Force
+ Save-Json $config (Join-Path $release '.porto-runtime\postgres.json')
  Set-PrivateAcl $release @('*S-1-5-19:(OI)(CI)RX')
  Set-PrivateAcl (Join-Path $release '.porto-runtime') @('*S-1-5-19:(OI)(CI)RX')
  # Node precisa ser legivel pela conta LocalService, sem receber permissao de escrita.
  & icacls.exe (Split-Path $NodePath) /grant '*S-1-5-19:(OI)(CI)RX' | Out-Null
  & icacls.exe (Split-Path $PostgresBin) /grant '*S-1-5-20:(OI)(CI)RX' | Out-Null
  foreach($dir in @('media','run','logs','tls')){Set-PrivateAcl (Join-Path $DataRoot $dir) @($(if($dir -eq 'tls'){'*S-1-5-19:(OI)(CI)RX'}else{'*S-1-5-19:(OI)(CI)M'}))}
+ # O editor grava e substitui apenas a conexao e os certificados nesta pasta protegida.
+ Set-PrivateAcl (Join-Path $DataRoot 'integrations') @('*S-1-5-19:(OI)(CI)M')
  foreach($dir in @('.vinext')){New-Item -ItemType Directory -Path (Join-Path $release $dir) -Force | Out-Null;Set-PrivateAcl (Join-Path $release $dir) @('*S-1-5-19:(OI)(CI)M')}
- Save-Json @{root=$release;dataRoot=$DataRoot;node=$NodePath;uiPort=$UiPort;version=$manifest.version;commit=$manifest.commit;previousRoot=$previous.root} $currentPath
+ Save-Json @{root=$release;dataRoot=$DataRoot;node=$NodePath;uiPort=$UiPort;version=$manifest.version;commit=$manifest.commit;previousRoot=$previous.root;portoEnabled=($EnablePorto.IsPresent -or $previous.portoEnabled -eq $true)} $currentPath
  Save-Json @{externalPath=$ExternalBackupPath;keyDirectory=$RecoveryKeyDirectory} (Join-Path $InstallRoot 'backup.json')
  Set-PrivateAcl $InstallRoot @('*S-1-5-19:RX')
  & icacls.exe $currentPath /grant '*S-1-5-19:R' | Out-Null

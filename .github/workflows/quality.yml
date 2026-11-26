@@ -36,16 +36,42 @@ jobs:
           cache: npm
       - name: Install locked dependencies
         run: npm ci
+      - name: Reject known high and critical dependency vulnerabilities
+        run: npm audit --audit-level=high
       - name: Check types
         run: npm run check
+      - name: Lint the complete repository
+        run: npm run lint
+      - name: Check readable source formatting
+        run: npm run format:check
       - name: Run tests
         run: npm test
       - name: Build application
         run: npm run build
       - name: Build demonstration
         run: npm run build:demo
+  ui:
+    name: Responsive UI and accessibility
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npm run lint:ui
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:ui
+      - name: Save visual evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: enterprise-ui-review
+          path: .porto-tooling/ui-review
   postgres:
-    name: PostgreSQL API and native build
+    name: PostgreSQL API, iDSecure and native build
     runs-on: ubuntu-latest
     timeout-minutes: 20
     services:
@@ -74,9 +100,40 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run check
-      - run: node --experimental-strip-types --test tests/postgres.test.mjs
+      - name: Run all tests with PostgreSQL, including iDSecure and security regressions
+        run: npm test
       - run: npm run build
       - run: npx playwright install --with-deps chromium
+      - name: Verify Porto approval and entry over HTTPS
+        run: npm run test:porto:browser
+      - name: Verify access policies in browser
+        run: npm run test:access:browser
+      - name: Verify isolated turnstile monitor in browser
+        run: npm run test:monitor:browser
+      - name: Verify visitor photo and initial authorization in browser
+        run: npm run test:visitor-face:browser
+      - name: Verify individual exit permits and offline recovery over HTTPS
+        run: npm run test:exit:browser
+      - name: Verify interface freshness, person search and responsive navigation
+        run: npm run test:interface:browser
+      - name: Verify company fleet, inspection media and material invoice
+        run: npm run test:logistics:browser
+      - name: Verify Control iD settings against a simulated HTTPS central
+        run: npm run test:controlid:browser
+      - name: Save PostgreSQL browser evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: porto-foundation-review
+          path: |
+            .porto-tooling/porto-review
+            .porto-tooling/access-review
+            .porto-tooling/turnstile-review
+            .porto-tooling/visitor-face-review
+            .porto-tooling/exit-review
+            .porto-tooling/interface-review
+            .porto-tooling/logistics-browser
+            .porto-tooling/controlid-browser
       - name: Verify private video playback in browser
         run: node --experimental-strip-types --test tests/postgres.test.mjs
         env:

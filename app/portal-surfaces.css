@@ -1,0 +1,510 @@
+/* Shared screen surfaces. Keep printable reports, receipts and badges on their own styles. */
+@media screen {
+  :is(.app-shell, .modal-overlay) {
+    --portal-paper: #fff;
+    --portal-tint: #f5f7fa;
+    --portal-line: var(--border);
+    --portal-rule: #e8edf2;
+    --portal-ink: var(--ink);
+    --portal-muted: var(--text-secondary);
+    --portal-action: var(--primary);
+    --portal-action-hover: #173d80;
+    --portal-selected: #edf3fb;
+    --portal-inset: 20px;
+  }
+
+  .app-shell .page-heading {
+    gap: 12px 24px;
+    margin-bottom: 20px;
+  }
+
+  .app-shell .page-title {
+    color: var(--portal-ink);
+    font-size: clamp(25px, 2.3vw, 32px);
+    font-weight: 700;
+    line-height: 1.15;
+    letter-spacing: -0.035em;
+  }
+
+  .app-shell .page-subtitle {
+    margin-top: 6px;
+    color: var(--portal-muted);
+    font-size: 13px;
+    line-height: 1.45;
+  }
+
+  :is(.app-shell, .modal-overlay) :is(.card, .settings-section) {
+    background: var(--portal-paper);
+    border-color: var(--portal-line);
+    border-radius: 10px;
+    box-shadow: none;
+  }
+
+  :is(.app-shell, .modal-overlay) .card-header {
+    min-height: 56px;
+    padding: 14px var(--portal-inset);
+    border-color: var(--portal-rule);
+  }
+
+  :is(.app-shell, .modal-overlay) .card-title {
+    color: var(--portal-ink);
+    font-size: 16px;
+    font-weight: 680;
+    letter-spacing: -0.018em;
+  }
+
+  :is(.app-shell, .modal-overlay) .card-subtitle {
+    margin-top: 3px;
+    color: var(--portal-muted);
+  }
+
+  :is(.app-shell, .modal-overlay) .card-body {
+    padding: var(--portal-inset);
+  }
+
+  .app-shell .dashboard-layout > .kpi-grid {
+    gap: 1px;
+    overflow: hidden;
+    border: 1px solid var(--portal-line);
+    border-radius: 10px;
+    background: var(--portal-line);
+  }
+
+  .app-shell .stat-card {
+    border-color: var(--portal-line);
+    border-radius: 9px;
+    background: var(--portal-paper);
+    box-shadow: none;
+  }
+
+  .app-shell .dashboard-layout > .kpi-grid > .stat-card {
+    border: 0;
+    border-radius: 0;
+  }
+
+  .app-shell button.stat-card:not(:disabled):hover {
+    border-color: #a1b6d1;
+    background: var(--portal-tint);
+    box-shadow: none;
+  }
+
+  .app-shell button.stat-card.selected {
+    border-color: #7c9ac5;
+    background: var(--portal-selected);
+    box-shadow: none;
+  }
+
+  .app-shell .stat-icon {
+    width: 33px;
+    height: 34px;
+    color: var(--portal-muted);
+    border: 1px solid var(--portal-rule);
+    border-radius: 7px;
+    background: var(--portal-tint);
+  }
+
+  .app-shell .stat-icon svg {
+    width: 17px;
+    height: 17px;
+  }
+
+  .app-shell .tone-amber .stat-icon {
+    color: #8d4c1c;
+  }
+
+  .app-shell .tone-red .stat-icon {
+    color: #a33b36;
+  }
+
+  .app-shell .stat-label {
+    color: var(--portal-muted);
+    font-weight: 600;
+  }
+
+  .app-shell .stat-value {
+    color: var(--portal-ink);
+    font-size: 28px;
+  }
+
+  .app-shell .stat-detail {
+    color: var(--portal-muted);
+  }
+
+  :is(.app-shell, .modal-overlay) .button {
+    color: #32465f;
+    border-color: #cdd8e3;
+    border-radius: 7px;
+    box-shadow: none;
+    font-weight: 620;
+  }
+
+  :is(.app-shell, .modal-overlay) .button:not(:disabled):hover {
+    background: var(--portal-tint);
+    border-color: #a3b5c9;
+    box-shadow: none;
+  }
+
+  :is(.app-shell, .modal-overlay) .button.primary {
+    color: #fff;
+    border-color: var(--portal-action);
+    background: var(--portal-action);
+  }
+
+  :is(.app-shell, .modal-overlay) .button.primary:not(:disabled):hover {
+    border-color: var(--portal-action-hover);
+    background: var(--portal-action-hover);
+  }
+
+  :is(.app-shell, .modal-overlay) .button.danger {
+    color: #9e3633;
+    background: #fdf3f1;
+    border-color: #edd1ca;
+  }
+
+  :is(.app-shell, .modal-overlay) .button.danger:not(:disabled):hover {
+    color: #8d2924;
+    background: #fbe8e5;
+    border-color: #d9a8a1;
+  }
+
+  :is(.app-shell, .modal-overlay) :is(.section-link, .content-link) {
+    color: var(--portal-action);
+    font-weight: 630;
+  }
+
+  :is(.app-shell, .modal-overlay) :is(.section-link, .content-link):hover {
+    color: var(--portal-action-hover);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+
+  .app-shell :is(.tabs, .access-tabs, .v3-tabs):has(> :is(.tab, button:not(.button))) {
+    gap: 4px;
+    padding: 0;
+    border-radius: 0;
+    border-bottom: 1px solid var(--portal-line);
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .app-shell :is(.tabs, .access-tabs, .v3-tabs) > :is(.tab, button:not(.button)) {
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    color: var(--portal-muted);
+    box-shadow: none;
+  }
+
+  .app-shell :is(.tabs, .access-tabs, .v3-tabs) > :is(.tab, button:not(.button)):hover {
+    color: var(--portal-action);
+    background: var(--portal-tint);
+  }
+
+  .app-shell :is(.tabs, .access-tabs, .v3-tabs) > :is(.tab, button:not(.button)).active {
+    background: transparent;
+    color: var(--portal-action);
+    box-shadow: inset 0 -2px var(--portal-action);
+    font-weight: 660;
+  }
+
+  .app-shell :is(.tabs, .access-tabs, .v3-tabs) > :is(.tab, button:not(.button)):focus-visible {
+    outline-offset: -3px;
+  }
+
+  .app-shell .settings-nav {
+    border-color: var(--portal-line);
+    border-radius: 9px;
+    background: var(--portal-paper);
+    box-shadow: none;
+  }
+
+  .app-shell .settings-nav :is(button, a) {
+    border-radius: 5px;
+    color: var(--portal-muted);
+  }
+
+  .app-shell .settings-nav :is(button, a).active {
+    color: var(--portal-action);
+    background: var(--portal-selected);
+    box-shadow: none;
+  }
+
+  :is(.app-shell, .modal-overlay) :is(.toolbar, .vehicle-period, .access-extra-filters) {
+    border-color: var(--portal-rule);
+    box-shadow: none;
+  }
+
+  :is(.app-shell, .modal-overlay) .toolbar {
+    padding: 12px var(--portal-inset);
+  }
+
+  .app-shell .report-actions {
+    border-top: 1px solid var(--portal-rule);
+    padding-top: 14px;
+  }
+
+  :is(.app-shell, .modal-overlay) :is(.search-field, .access-search) {
+    color: var(--portal-muted);
+    background: var(--portal-paper);
+    border-color: #cbd6e1;
+    border-radius: 7px;
+    box-shadow: none;
+  }
+
+  :is(.app-shell, .modal-overlay) :is(.search-field, .access-search):focus-within {
+    border-color: var(--portal-action);
+  }
+
+  :is(.app-shell, .modal-overlay) :is(.input, .select, .textarea) {
+    color: var(--portal-ink);
+    border-color: #cbd6e1;
+    border-radius: 7px;
+    background: var(--portal-paper);
+  }
+
+  :is(.app-shell, .modal-overlay) :is(.input, .select, .textarea):disabled {
+    background: var(--portal-tint);
+    color: var(--portal-muted);
+  }
+
+  :is(.app-shell, .modal-overlay) :is(.input, .select, .textarea):focus {
+    border-color: var(--portal-action);
+    box-shadow: none;
+  }
+
+  :is(.app-shell, .modal-overlay) :is(.input, .select, .textarea)[aria-invalid='true'] {
+    border-color: #b55c54;
+  }
+
+  :is(.app-shell, .modal-overlay) .field-label {
+    color: var(--portal-ink);
+  }
+
+  :is(.app-shell, .modal-overlay) .field-hint {
+    color: var(--portal-muted);
+  }
+
+  :is(.app-shell, .modal-overlay) .form-section legend {
+    padding-bottom: 9px;
+    margin-bottom: 13px;
+    border-color: var(--portal-rule);
+    color: var(--portal-ink);
+  }
+
+  :is(.app-shell, .modal-overlay) .table-wrap:focus-visible {
+    outline-offset: -2px;
+  }
+
+  :is(.app-shell, .modal-overlay) .data-table th {
+    padding: 10px var(--portal-inset);
+    color: #435771;
+    background: var(--portal-tint);
+    border-bottom: 1px solid var(--portal-line);
+    font-size: 12px;
+    font-weight: 670;
+  }
+
+  :is(.app-shell, .modal-overlay) .data-table td {
+    padding: 11px var(--portal-inset);
+    border-color: var(--portal-rule);
+    color: #344860;
+    font-variant-numeric: tabular-nums;
+  }
+
+  :is(.app-shell, .modal-overlay) .data-table tbody tr:hover td {
+    background: #f7f9fc;
+  }
+
+  :is(.app-shell, .modal-overlay) .data-table .cell-primary {
+    color: var(--portal-ink);
+  }
+
+  :is(.app-shell, .modal-overlay) .row-actions .icon-button {
+    border-radius: 6px;
+    box-shadow: none;
+  }
+
+  :is(.app-shell, .modal-overlay) .status {
+    --portal-status-ink: #41546d;
+    --portal-status-fill: #f1f4f8;
+    --portal-status-line: #dce4ed;
+    color: var(--portal-status-ink);
+    background: var(--portal-status-fill);
+    border: 1px solid var(--portal-status-line);
+    border-radius: 5px;
+    padding: 2px 7px;
+    font-size: 11px;
+    line-height: 1.5;
+    font-weight: 640;
+  }
+
+  :is(.app-shell, .modal-overlay)
+    :is(.status-authorized, .status-active, .status-inside, .status-paid) {
+    --portal-status-ink: #1c653f;
+    --portal-status-fill: #eef7f0;
+    --portal-status-line: #d5eadb;
+  }
+
+  :is(.app-shell, .modal-overlay)
+    :is(.status-pending, .status-unconfirmed, .status-temporarily_out) {
+    --portal-status-ink: #8b4a18;
+    --portal-status-fill: #fff7e9;
+    --portal-status-line: #efdfc6;
+  }
+
+  :is(.app-shell, .modal-overlay) :is(.status-denied, .status-revoked, .status-cancelled) {
+    --portal-status-ink: #9d3430;
+    --portal-status-fill: #fbefed;
+    --portal-status-line: #efd5d1;
+  }
+
+  :is(.app-shell, .modal-overlay) .status-partial {
+    --portal-status-ink: #294f8e;
+    --portal-status-fill: #edf3fb;
+    --portal-status-line: #d5e3f3;
+  }
+
+  :is(.app-shell, .modal-overlay) .status :is(span, i) {
+    flex-shrink: 0;
+  }
+
+  :is(.app-shell, .modal-overlay) :is(.notice, .empty, .v3-empty) {
+    box-shadow: none;
+  }
+
+  :is(.app-shell, .modal-overlay) .notice {
+    padding: 10px 12px;
+    border-radius: 7px;
+  }
+
+  :is(.app-shell, .modal-overlay) .notice.info {
+    color: #294b84;
+    background: #eef3fa;
+    border-color: #dce6f3;
+  }
+
+  :is(.app-shell, .modal-overlay) .empty {
+    min-height: 128px;
+    padding: 22px var(--portal-inset);
+  }
+
+  :is(.app-shell, .modal-overlay) .empty-icon {
+    height: 34px;
+    width: 34px;
+    margin-bottom: 8px;
+    border: 1px solid var(--portal-rule);
+    border-radius: 7px;
+    background: var(--portal-tint);
+    color: var(--portal-muted);
+  }
+
+  :is(.app-shell, .modal-overlay) .empty-icon svg {
+    width: 17px;
+    height: 17px;
+    color: inherit;
+  }
+
+  :is(.app-shell, .modal-overlay) .empty-title {
+    color: var(--portal-ink);
+  }
+
+  :is(.app-shell, .modal-overlay) .record-loader {
+    color: var(--portal-muted);
+  }
+
+  .modal-overlay {
+    background: #18283b60;
+    backdrop-filter: none;
+  }
+
+  .modal-overlay .modal-dialog {
+    border-color: var(--portal-line);
+    border-radius: 10px;
+    background: var(--portal-paper);
+    box-shadow: 0 14px 48px #18283b29;
+  }
+
+  .modal-overlay :is(.modal-header, .modal-footer) {
+    border-color: var(--portal-line);
+    background: var(--portal-paper);
+  }
+
+  .modal-overlay .modal-header {
+    padding-block: 13px;
+  }
+
+  .modal-overlay .modal-title {
+    color: var(--portal-ink);
+    font-weight: 700;
+  }
+
+  .modal-overlay .modal-footer {
+    padding-block: 12px;
+    background: var(--portal-tint);
+  }
+
+  .modal-overlay .form-step-navigation {
+    padding-block: 0;
+    background: var(--portal-paper);
+    border-color: var(--portal-rule);
+  }
+
+  .modal-overlay .form-step-navigation button {
+    color: var(--portal-muted);
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+  }
+
+  .modal-overlay .form-step-navigation button.current {
+    color: var(--portal-action);
+    background: transparent;
+    box-shadow: inset 0 -2px var(--portal-action);
+  }
+
+  .modal-overlay .form-step-navigation button.complete {
+    color: var(--portal-ink);
+  }
+
+  .modal-overlay .form-step-number {
+    border-color: var(--portal-line);
+    border-radius: 5px;
+    background: var(--portal-tint);
+    color: var(--portal-muted);
+  }
+
+  .modal-overlay .current .form-step-number {
+    background: var(--portal-selected);
+    color: var(--portal-action);
+    border-color: #d7e3f3;
+  }
+
+  .modal-overlay .complete .form-step-number {
+    background: #eef7f0;
+    color: #1c653f;
+    border-color: #d5eadb;
+  }
+
+  .modal-overlay .form-step-navigation button:focus-visible {
+    outline-offset: -3px;
+  }
+}
+
+@media screen and (max-width: 540px) {
+  :is(.app-shell, .modal-overlay) {
+    --portal-inset: 14px;
+  }
+
+  .app-shell .page-heading {
+    margin-bottom: 16px;
+  }
+
+  .app-shell .stat-icon {
+    width: 27px;
+    height: 29px;
+  }
+
+  .app-shell .stat-value {
+    font-size: 24px;
+  }
+}

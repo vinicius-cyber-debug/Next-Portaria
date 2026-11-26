@@ -39,12 +39,30 @@ export function createDemoSeed(now=new Date().toISOString()) {
     const vehicle=apply('VEHICLE_ENTER',{plate:fleet.plate,fleetId:fleet.id,driver:person.name,driverPersonId:person.id,company:person.company,purpose:'Apoio à operação · exemplo fictício',host:'Marina Rocha',gateName:index%2?'Portaria de serviços':'Portaria principal'},index<4?-0.8-index*0.3:-24);
     if(index>=4)apply('VEHICLE_EXIT',{id:vehicle.id},-23);
   }
+  const utility=apply('FLEET_VEHICLE_SAVE',{plate:'FIC8D81',name:'Utilitário de manutenção · demonstração',initialOdometerKm:18120},-48);
+  const trip=apply('FLEET_DEPART',{fleetId:utility.id,driver:'Bruno Azevedo',destination:'Oficina de apoio (fictícia)',purpose:'Revisão programada',odometerOut:18120},-7);
+  apply('FLEET_RETURN',{id:trip.id,odometerIn:18152},-5);
+  apply('MATERIAL_EXIT_CREATE',{description:'Bombas para revisão em oficina (fictícias)',quantity:'2 unidades',destination:'Oficina de apoio (fictícia)',responsible:'Equipe de manutenção',invoiceNumber:'NF-DEMO-0245',vehiclePlate:utility.plate},-7);
   const first=apply('INCIDENT_CREATE',{title:'Iluminação do acesso lateral',description:'Uma luminária está intermitente. A manutenção foi avisada e o acesso segue acompanhado pela equipe.',category:'Infraestrutura',severity:'medium',location:'Portaria de serviços',responsible:'Equipe de manutenção',attachmentIds:[]},-4);
   apply('INCIDENT_UPDATE',{id:first.id,status:'in_progress',note:'Equipe de manutenção acionada.'},-3);
   apply('INCIDENT_CREATE',{title:'Atualizar sinalização da recepção',description:'Revisar a orientação de visitantes na recepção durante a troca de turno.',category:'Operação',severity:'low',location:'Recepção',responsible:'Marina Rocha',attachmentIds:[]},-2);
   const solved=apply('INCIDENT_CREATE',{title:'Leitor de crachá conferido',description:'Teste preventivo do leitor de acesso.',category:'Equipamentos',severity:'low',location:'Portaria principal',responsible:'Equipe de apoio',attachmentIds:[]},-26);
   apply('INCIDENT_UPDATE',{id:solved.id,status:'resolved',resolution:'Leitura conferida e funcionamento normal.'},-25);
   apply('SHIFT_HANDOVER',{shift:'Turno da manhã',summary:'Operação acompanhada, entregas programadas e equipe de apoio a postos.',pending:'Acompanhar manutenção da iluminação lateral.',incidentIds:[first.id]},-1);
+  // Presentation examples of the new standing-access, boat and production flows.
+  apply('MASTER_SAVE',{kind:'companies',record:{name:'Equipe de demonstração (fictícia)',active:true,notes:'Empresa inteiramente fictícia para apresentação.'}},-24);
+  for(const [name,category,mode,scenario] of [
+    ['Beatriz Monteiro (fictícia)','employee','controlled','ready'],
+    ['Renata Lima (fictícia)','employee','controlled','productive'],
+    ['Eduardo Sousa (fictício)','visitor','unobserved','boat'],
+  ]){
+    const person=apply('MASTER_SAVE',{kind:'people',record:{name,company:'Equipe de demonstração (fictícia)',category,securityStatus:'cleared',active:true,notes:'Registro fictício para apresentação.'}},-24);
+    apply('PERSON_AUTHORIZE',{personId:person.id,areaIds:[reception.id,warehouse.id],validFrom:at(-24),validUntil:at(24*30),exitControl:mode,reason:'Autorização fictícia revisada para a demonstração.'},-12);
+    if(scenario!=='ready'){
+      const visit=apply('PERSON_ENTER',{personId:person.id,areaId:reception.id,identityConfirmed:true},-1);
+      if(scenario==='productive')apply('EMPLOYEE_LEAVE',{id:visit.id,productionPeriod:'Produção da manhã · demonstração',reason:'Intervalo fictício durante o período produtivo.'},-0.25);
+    }
+  }
   const checked=validateState(state);
   checked.audit=state.audit;
   return checked;

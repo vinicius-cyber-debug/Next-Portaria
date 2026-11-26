@@ -10,6 +10,10 @@ O Next Portaria reúne autorizações, pessoas, visitantes e veículos em uma op
 
 A versão `0.7.0` usa **PostgreSQL 17**, arquivos privados fora do código e envio de fotos e vídeos com retomada nas ocorrências. Consulte [PostgreSQL e recuperação](docs/POSTGRESQL.md), [vídeos e retenção](docs/MIDIAS.md) e [implantação no Windows Server](docs/IMPLANTACAO-SERVIDOR.md). A demonstração permanece uma referência visual.
 
+A candidata [`0.8.0-rc.2`](docs/RELEASE-0.8.0-rc.2.md) reúne a atualização de Visitantes, os relatórios operacionais, a frota própria, a saída de materiais e a configuração de leitura do Control iD. A [Gestão do Porto](docs/GESTAO-PORTO.md) permanece desativada por padrão e aguarda [homologação empresarial](docs/HOMOLOGACAO-PORTO.md). Dados anteriores por diária conservam sua regra e tarifa.
+
+Em desenvolvimento: [setores, líderes e liberação individual de saída](docs/LIBERACAO-SAIDA.md), com janela de 15 minutos, revogação, histórico e serviço integrado ao servidor. A conexão física permanece desativada até homologação acompanhada; vincular funcionários aos setores não altera permissões nas catracas.
+
 [**Abrir demonstração**](https://vinicius-cyber-debug.github.io/Next-Portaria/) · [Estudo de caso](docs/ESTUDO-DE-CASO.md) · [Vídeo de 40s](docs/assets/fluxo-visita.mp4) · [Funcionalidades](#o-que-você-pode-fazer) · [Começar](#comece-por-aqui) · [Documentação](#documentação)
 
 Experimente no navegador, sem instalação ou login, com dados fictícios e alterações apenas na memória da aba.
@@ -88,6 +92,10 @@ A aplicação PostgreSQL local abre em `http://127.0.0.1:5180`; o modo legado us
 - [PostgreSQL e armazenamento privado](docs/POSTGRESQL.md) — migração, diretórios permanentes, backup conjunto e estrutura para mídias.
 - [Implantação no servidor](docs/IMPLANTACAO-SERVIDOR.md) — releases, HTTPS, execução sem login, backup externo e aceite.
 - [Fotos e vídeos](docs/MIDIAS.md) — envio com retomada, limites, reprodução e retenção.
+- [Frota própria e saída de materiais](docs/FROTA-MATERIAIS.md) — nota fiscal, saídas, retornos, quilometragem e vistorias com fotos e vídeos.
+- [Diagnóstico da evolução](docs/DIAGNOSTICO-EVOLUCAO.md) — estabilidade PostgreSQL, cobertura e limites verificados.
+- [Preparação Control iD](docs/INTEGRACAO-CONTROLID.md) — arquitetura e simulador; conexão real aguarda modelo, firmware e validação em bancada.
+- [Configuração Control iD no portal](docs/CONFIGURACAO-CONTROLID.md) — conexão iDSecure, credenciais, certificado e teste pela Administração.
 - [Operação local](docs/OPERACAO-LOCAL.md) — instalação, usuários, rede, backup e problemas comuns.
 - [Estudo de caso](docs/ESTUDO-DE-CASO.md) — participação do autor, desafio de negócio e 154 testes aprovados na validação de 30/10/2026.
 - [Arquitetura](docs/ARQUITETURA.md) — módulos, persistência e responsabilidades.
@@ -109,6 +117,10 @@ npm run build
 ```
 
 O [guia de operação](docs/OPERACAO-LOCAL.md) e a [arquitetura](docs/ARQUITETURA.md) detalham a execução com dados persistentes.
+
+O [relatório do redesign Enterprise](docs/REDESIGN-ENTERPRISE.md) descreve o Design System, a auditoria das telas e a verificação de responsividade/acessibilidade com `npm run test:ui`.
+
+A [automação externa de horários](docs/AUTOMACAO-SAIDA.md) possui cálculo e acompanhamento em modo de prévia, com testes de reconciliação no simulador. O envio de bloqueios físicos ao iDSecure ainda depende de implementação e homologação.
 
 ## Escopo atual
 
